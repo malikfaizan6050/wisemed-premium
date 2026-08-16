@@ -1,4 +1,4 @@
-import { Lead } from "./types";
+import { Lead } from "@/types/crm";
 
 
 export interface ConversationState {
@@ -37,50 +37,92 @@ export function processMessage(
 ):ConversationState{
 
 
-    const updatedData = {...currentData};
+    const updatedData = {
+        ...currentData
+    };
+
+
+    const text = message.trim();
 
 
 
-    const lower = message.toLowerCase();
+    // Simple extraction
+    // Later replace with Gemini extraction
 
 
+    if(!updatedData.firstName){
 
-    // Simple extraction layer
-    // We will replace with OpenAI later
-
-
-    if(!updatedData.firstName && message.length < 30){
-
-        updatedData.firstName = message;
-
-    }
-
-
-    if(!updatedData.email && lower.includes("@")){
-
-        updatedData.email = message;
+        updatedData.firstName=text;
 
     }
 
+    else if(!updatedData.lastName){
 
-
-    if(!updatedData.organization &&
-        lower.includes("clinic")
-    ){
-
-        updatedData.organization = message;
+        updatedData.lastName=text;
 
     }
 
+    else if(!updatedData.email && text.includes("@")){
+
+        updatedData.email=text;
+
+    }
+
+    else if(!updatedData.organization){
+
+        updatedData.organization=text;
+
+    }
+
+    else if(!updatedData.specialty){
+
+        updatedData.specialty=text;
+
+    }
+
+    else if(!updatedData.npi){
+
+        updatedData.npi=text;
+
+    }
+
+    else if(!updatedData.claimsVolume){
+
+        updatedData.claimsVolume=Number(text);
+
+    }
+
+    else if(!updatedData.currentBillingMethod){
+
+        updatedData.currentBillingMethod="unknown";
+
+    }
+
+    else if(!updatedData.ehrSystem){
+
+        updatedData.ehrSystem=text;
+
+    }
+
+    else if(!updatedData.denialRate){
+
+        updatedData.denialRate=Number(text);
+
+    }
+
+    else if(!updatedData.practiceSize){
+
+        updatedData.practiceSize=text;
+
+    }
 
 
 
     const missing =
-        requiredFields.filter(
-            field =>
-            !updatedData[field as keyof Lead]
-        );
-
+    requiredFields.filter(
+        field =>
+        !updatedData[field as keyof Lead]
+    );
 
 
 
@@ -93,7 +135,7 @@ export function processMessage(
             completed:true,
 
             nextQuestion:
-            "Thank you. Our specialist will contact you shortly."
+            "Thank you for providing your information. Our RCM specialist will contact you shortly."
 
         };
 
@@ -101,52 +143,37 @@ export function processMessage(
 
 
 
-    const nextField = missing[0];
-
-
-
     const questions:any={
-
 
         firstName:
         "May I know your first name?",
 
-
         lastName:
         "What is your last name?",
-
 
         email:
         "What is your email address?",
 
-
         organization:
         "What is your practice or organization name?",
-
 
         specialty:
         "What medical specialty do you practice?",
 
-
         npi:
         "Please provide your NPI number.",
-
 
         claimsVolume:
         "Approximately how many claims do you process monthly?",
 
-
         currentBillingMethod:
-        "Are you currently using in-house billing, outsourced billing, or hybrid?",
-
+        "Are you using in-house billing, outsourced billing, or hybrid?",
 
         ehrSystem:
         "Which EHR system do you use?",
 
-
         denialRate:
         "What is your current claim denial rate?",
-
 
         practiceSize:
         "How many providers are in your practice?"
@@ -157,14 +184,14 @@ export function processMessage(
 
     return {
 
-
         collected:updatedData,
 
         completed:false,
 
         nextQuestion:
-        questions[nextField]
+        questions[missing[0]]
 
     };
+
 
 }

@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Building2,
   Activity,
-  DollarSign,
   Flame
 } from "lucide-react";
 
@@ -19,98 +18,53 @@ import {
 
 interface Props {
 
-  leads:Lead[];
+  leads: Lead[];
 
-  onSelect:(lead:Lead)=>void;
+  onSelect: (lead: Lead) => void;
 
 }
 
 
 
 
-const stageLabels:any={
+
+const stageLabels: Record<string,string> = {
 
 
-new_inquiry:
-"New Inquiry",
+  new_inquiry:
+    "New Inquiry",
 
 
-initial_review:
-"Initial Review",
+  initial_review:
+    "Initial Review",
 
 
-discovery_scheduled:
-"Discovery Scheduled",
+  discovery_scheduled:
+    "Discovery Scheduled",
 
 
-requirements_collected:
-"Requirements Collected",
+  requirements_collected:
+    "Requirements Collected",
 
 
-proposal_sent:
-"Proposal Sent",
+  proposal_sent:
+    "Proposal Sent",
 
 
-contract_review:
-"Contract Review",
+  contract_review:
+    "Contract Review",
 
 
-onboarding:
-"Onboarding",
+  onboarding:
+    "Onboarding",
 
 
-active_client:
-"Active Client",
+  active_client:
+    "Active Client",
 
 
-lost:
-"Lost Opportunity"
-
-
-};
-
-
-
-
-
-const stageStyles:any={
-
-
-new_inquiry:
-"bg-blue-50 text-blue-700 border-blue-100",
-
-
-initial_review:
-"bg-indigo-50 text-indigo-700 border-indigo-100",
-
-
-discovery_scheduled:
-"bg-purple-50 text-purple-700 border-purple-100",
-
-
-requirements_collected:
-"bg-cyan-50 text-cyan-700 border-cyan-100",
-
-
-proposal_sent:
-"bg-orange-50 text-orange-700 border-orange-100",
-
-
-contract_review:
-"bg-yellow-50 text-yellow-700 border-yellow-100",
-
-
-onboarding:
-"bg-green-50 text-green-700 border-green-100",
-
-
-active_client:
-"bg-emerald-50 text-emerald-700 border-emerald-100",
-
-
-lost:
-"bg-red-50 text-red-700 border-red-100"
-
+  lost:
+    "Lost Opportunity"
 
 };
 
@@ -119,20 +73,64 @@ lost:
 
 
 
-const priorityStyles:any={
+const stageStyles: Record<string,string> = {
 
 
-critical:
-"bg-red-50 text-red-700",
+  new_inquiry:
+    "bg-blue-50 text-blue-700 border-blue-100",
 
 
-high:
-"bg-orange-50 text-orange-700",
+  initial_review:
+    "bg-indigo-50 text-indigo-700 border-indigo-100",
 
 
-standard:
-"bg-slate-100 text-slate-600"
+  discovery_scheduled:
+    "bg-purple-50 text-purple-700 border-purple-100",
 
+
+  requirements_collected:
+    "bg-cyan-50 text-cyan-700 border-cyan-100",
+
+
+  proposal_sent:
+    "bg-orange-50 text-orange-700 border-orange-100",
+
+
+  contract_review:
+    "bg-yellow-50 text-yellow-700 border-yellow-100",
+
+
+  onboarding:
+    "bg-green-50 text-green-700 border-green-100",
+
+
+  active_client:
+    "bg-emerald-50 text-emerald-700 border-emerald-100",
+
+
+  lost:
+    "bg-red-50 text-red-700 border-red-100"
+
+};
+
+
+
+
+
+
+const priorityStyles: Record<string,string> = {
+
+
+  critical:
+    "bg-red-50 text-red-700",
+
+
+  high:
+    "bg-orange-50 text-orange-700",
+
+
+  standard:
+    "bg-slate-100 text-slate-600"
 
 };
 
@@ -144,19 +142,17 @@ standard:
 
 export default function LeadTable({
 
-leads,
+  leads,
 
-onSelect
+  onSelect
 
-}:Props){
+}: Props) {
 
 
 
 return (
 
-
 <div
-
 className="
 mt-6
 overflow-hidden
@@ -166,11 +162,7 @@ border-slate-200
 bg-white
 shadow-sm
 "
-
 >
-
-
-{/* HEADER */}
 
 
 
@@ -178,7 +170,7 @@ shadow-sm
 
 className="
 grid
-grid-cols-7
+grid-cols-8
 items-center
 border-b
 bg-slate-50
@@ -194,40 +186,19 @@ text-slate-500
 >
 
 
-<div>
-Provider
-</div>
+<div>Provider</div>
 
+<div>Practice</div>
 
-<div>
-Practice
-</div>
+<div>Specialty</div>
 
+<div>Pipeline</div>
 
-<div>
-Specialty
-</div>
+<div>Score</div>
 
+<div>Claims</div>
 
-<div>
-Pipeline
-</div>
-
-
-<div>
-Score
-</div>
-
-
-<div>
-Claims
-</div>
-
-
-<div>
-Priority
-</div>
-
+<div>Priority</div>
 
 <div></div>
 
@@ -239,10 +210,20 @@ Priority
 
 
 
-
 {
-leads.map((lead)=>(
+leads.map((lead)=>{
 
+
+const status =
+lead.status ?? "new_inquiry";
+
+
+const priority =
+lead.priority ?? "standard";
+
+
+
+return (
 
 <button
 
@@ -254,50 +235,34 @@ onClick={()=>onSelect(lead)}
 
 
 className="
-
 group
-
 grid
-
-grid-cols-7
-
+grid-cols-8
 w-full
-
 items-center
-
 border-b
-
 px-6
-
 py-5
-
 text-left
-
 transition-all
-
 hover:bg-blue-50/40
-
 "
+
 
 
 >
 
 
 
-
 {/* PROVIDER */}
-
 
 <div>
 
-
 <p
-
 className="
 font-semibold
 text-slate-900
 "
-
 >
 
 {lead.firstName} {lead.lastName}
@@ -306,13 +271,11 @@ text-slate-900
 
 
 <p
-
 className="
 mt-1
 text-xs
 text-slate-500
 "
-
 >
 
 Healthcare Provider
@@ -327,9 +290,7 @@ Healthcare Provider
 
 
 
-
 {/* PRACTICE */}
-
 
 
 <div
@@ -345,14 +306,13 @@ text-blue-600
 
 >
 
-
 <Building2 size={15}/>
 
 
 <span className="truncate max-w-[150px]">
 
 {
-lead.organization || 
+lead.organization ||
 "Medical Practice"
 }
 
@@ -366,19 +326,14 @@ lead.organization ||
 
 
 
-
-
 {/* SPECIALTY */}
 
 
-
 <div
-
 className="
 text-sm
 text-slate-600
 "
-
 >
 
 {
@@ -386,10 +341,8 @@ lead.specialty ||
 "General Practice"
 }
 
+
 </div>
-
-
-
 
 
 
@@ -405,31 +358,24 @@ lead.specialty ||
 <span
 
 className={`
-
 inline-flex
-
 rounded-full
-
 border
-
 px-3
-
 py-1
-
 text-xs
-
 font-semibold
-
-${stageStyles[lead.status]}
-
+${stageStyles[status]}
 `}
 
 >
 
+
 {
-stageLabels[lead.status] ||
-lead.status
+stageLabels[status] ||
+status
 }
+
 
 </span>
 
@@ -442,10 +388,7 @@ lead.status
 
 
 
-
-
 {/* SCORE */}
-
 
 
 <div
@@ -472,10 +415,12 @@ text-blue-600
 >
 
 {
-lead.leadScore
+lead.leadScore ?? 0
 }
 
+
 </p>
+
 
 
 <div
@@ -501,7 +446,9 @@ bg-blue-600
 "
 
 style={{
-width:`${lead.leadScore}%`
+
+width:`${lead.leadScore ?? 0}%`
+
 }}
 
 />
@@ -514,20 +461,17 @@ width:`${lead.leadScore}%`
 
 
 
-
 <TrendingUp
 
 size={15}
 
-className="
-text-blue-600
-"
+className="text-blue-600"
 
 />
 
 
-</div>
 
+</div>
 
 
 
@@ -578,11 +522,18 @@ lead.claimsVolume
 }
 
 
+
 </div>
 
 
-{/* PRIORITY */}
 
+
+
+
+
+
+
+{/* PRIORITY */}
 
 
 <div>
@@ -591,39 +542,35 @@ lead.claimsVolume
 <span
 
 className={`
-
 inline-flex
-
 items-center
-
 gap-1
-
 rounded-full
-
 px-3
-
 py-1
-
 text-xs
-
 font-semibold
+${priorityStyles[priority]}
+`
 
-${priorityStyles[lead.priority]}
+}
 
-`}
 
 >
 
 
+
 {
-lead.priority==="critical" &&
+priority==="critical" &&
 <Flame size={12}/>
 }
 
 
+
 {
-lead.priority
+priority
 }
+
 
 
 </span>
@@ -660,11 +607,8 @@ size={20}
 className="
 text-slate-400
 transition-all
-
 group-hover:translate-x-1
-
 group-hover:text-blue-600
-
 "
 
 />
@@ -679,11 +623,11 @@ group-hover:text-blue-600
 </button>
 
 
-))
+)
+
+})
 
 }
-
-
 
 
 
@@ -734,6 +678,8 @@ No healthcare providers found.
 
 
 }
+
+
 
 
 

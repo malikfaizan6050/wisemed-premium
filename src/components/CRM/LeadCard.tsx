@@ -245,14 +245,14 @@ px-3
 py-1
 text-xs
 font-semibold
-${statusStyles[lead.status]}
+${statusStyles[lead.status || "new_inquiry"]}
 `}
 
 >
 
 
 {
-lead.status
+(lead.status || "new_inquiry")
 .replaceAll("_"," ")
 }
 
@@ -271,7 +271,7 @@ px-3
 py-1
 text-xs
 font-semibold
-${priorityStyles[lead.priority]}
+${priorityStyles[lead.priority || "standard"]}
 `}
 
 >

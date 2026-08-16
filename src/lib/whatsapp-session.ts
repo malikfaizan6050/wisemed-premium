@@ -1,4 +1,3 @@
-import { db } from "./firebase-admin";
 import {
     doc,
     getDoc,
@@ -6,6 +5,9 @@ import {
     updateDoc
 } from "firebase/firestore";
 
+import {
+    db
+} from "./firebase";
 
 
 export interface WhatsAppSession {
@@ -39,25 +41,29 @@ export async function getSession(
     );
 
 
-    const snapshot = await getDoc(ref);
+    const snap = await getDoc(ref);
 
 
 
-    if(snapshot.exists()){
+    if(snap.exists()){
 
-        return snapshot.data() as WhatsAppSession;
+        return snap.data() as WhatsAppSession;
 
     }
 
 
 
-    const newSession:WhatsAppSession={
+    const session:WhatsAppSession={
+
 
         phone,
 
+
         data:{},
 
-        updatedAt:Date.now()
+
+        updatedAt:
+        Date.now()
 
     };
 
@@ -65,14 +71,14 @@ export async function getSession(
 
     await setDoc(
         ref,
-        newSession
+        session
     );
 
 
-    return newSession;
-
+    return session;
 
 }
+
 
 
 
@@ -80,7 +86,8 @@ export async function getSession(
 
 export async function saveSession(
     phone:string,
-    data:any
+    data:any,
+    lastMessage?:string
 ){
 
 
@@ -90,52 +97,18 @@ export async function saveSession(
         phone
     );
 
-
-    await setDoc(
-        ref,
-        {
-
-            phone,
-
-            data,
-
-            updatedAt:Date.now()
-
-        },
-
-        {
-            merge:true
-        }
-
-    );
-
-
-}
-
-
-
-
-
-export async function updateMessage(
-    phone:string,
-    message:string
-){
-
-
-    const ref = doc(
-        db,
-        "whatsapp_sessions",
-        phone
-    );
 
 
     await updateDoc(
         ref,
         {
 
-            lastMessage:message,
+            data,
 
-            updatedAt:Date.now()
+            lastMessage,
+
+            updatedAt:
+            Date.now()
 
         }
     );
