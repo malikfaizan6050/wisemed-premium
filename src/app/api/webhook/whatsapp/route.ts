@@ -39,9 +39,12 @@ export async function GET(request: Request) {
         token === process.env.WHATSAPP_VERIFY_TOKEN
     ) {
 
-        return new Response(
-            challenge
-        );
+        return new Response(challenge ?? "", {
+    status: 200,
+    headers:{
+        "Content-Type":"text/plain"
+    }
+});
 
     }
 
