@@ -1,0 +1,370 @@
+@import "tailwindcss";
+
+
+:root {
+
+  /* WiseMed Healthcare Theme */
+
+  --background: #f8fbff;
+  --foreground: #0f172a;
+
+  --primary: #2563eb;
+  --primary-light: #60a5fa;
+  --primary-dark: #1d4ed8;
+
+  --medical-blue: #eff6ff;
+  --medical-cyan: #e0f2fe;
+
+  --success: #16a34a;
+  --danger: #dc2626;
+
+  --glass:
+    rgba(255,255,255,0.65);
+
+  --border:
+    rgba(148,163,184,0.18);
+
+  --shadow-soft:
+    0 20px 60px rgba(37,99,235,0.12);
+
+  --shadow-large:
+    0 40px 100px rgba(15,23,42,0.15);
+
+}
+
+
+
+@theme inline {
+
+
+  --color-background:
+    var(--background);
+
+
+  --color-foreground:
+    var(--foreground);
+
+
+  --font-sans:
+    var(--font-geist-sans);
+
+
+  --font-mono:
+    var(--font-geist-mono);
+
+}
+
+
+
+
+
+* {
+
+  box-sizing:border-box;
+
+}
+
+
+
+
+
+html {
+
+  scroll-behavior:smooth;
+
+}
+
+
+
+
+
+body {
+
+
+  background:
+
+  radial-gradient(
+    circle at top left,
+    rgba(96,165,250,0.15),
+    transparent 35%
+  ),
+
+  radial-gradient(
+    circle at bottom right,
+    rgba(37,99,235,0.12),
+    transparent 40%
+  ),
+
+  var(--background);
+
+
+  color:var(--foreground);
+
+
+  font-family:
+  Arial,
+  Helvetica,
+  sans-serif;
+
+
+  overflow-x:hidden;
+
+}
+
+
+
+
+
+/* Premium Glass Effect */
+
+
+.glass {
+
+
+  background:
+  rgba(255,255,255,0.65);
+
+
+  backdrop-filter:
+  blur(20px);
+
+
+  border:
+  1px solid var(--border);
+
+
+}
+
+
+
+
+
+/* Premium Gradient Text */
+
+
+.gradient-text {
+
+
+background:
+linear-gradient(
+120deg,
+#2563eb,
+#60a5fa
+);
+
+
+-webkit-background-clip:text;
+
+background-clip:text;
+
+color:transparent;
+
+
+}
+
+
+
+
+
+/* Soft Hover Animation */
+
+
+.hover-lift {
+
+
+transition:
+transform .35s ease,
+box-shadow .35s ease;
+
+
+}
+
+
+
+.hover-lift:hover {
+
+
+transform:
+translateY(-8px);
+
+
+box-shadow:
+var(--shadow-soft);
+
+
+}
+
+
+
+
+
+/* Floating Animation */
+
+
+@keyframes floating {
+
+
+0% {
+
+transform:
+translateY(0px);
+
+}
+
+
+50% {
+
+transform:
+translateY(-12px);
+
+}
+
+
+100% {
+
+transform:
+translateY(0px);
+
+}
+
+
+}
+
+
+
+.float-animation {
+
+
+animation:
+floating 5s ease-in-out infinite;
+
+
+}
+
+
+
+
+
+/* Glow Effect */
+
+
+.blue-glow {
+
+
+box-shadow:
+
+0 0 40px
+rgba(37,99,235,0.35);
+
+
+}
+
+
+
+
+
+/* Consultation Form Inputs */
+
+
+.input-style {
+
+
+width:100%;
+
+border-radius:0.75rem;
+
+border:
+1px solid
+rgb(226 232 240);
+
+padding:
+1rem
+1.25rem;
+
+
+outline:none;
+
+background:white;
+
+font-size:0.95rem;
+
+
+transition:
+all .25s ease;
+
+
+}
+
+
+
+.input-style::placeholder {
+
+color:
+rgb(148 163 184);
+
+}
+
+
+
+.input-style:focus {
+
+
+border-color:
+rgb(37 99 235);
+
+
+box-shadow:
+
+0 0 0 4px
+rgba(37,99,235,0.12);
+
+
+}
+
+
+
+
+
+/* Text Selection */
+
+
+::selection {
+
+background:
+rgba(37,99,235,0.2);
+
+color:
+#0f172a;
+
+}
+
+
+
+
+
+/* Hide scrollbar */
+
+
+::-webkit-scrollbar {
+
+width:8px;
+
+}
+
+
+
+::-webkit-scrollbar-track {
+
+background:#f1f5f9;
+
+}
+
+
+
+::-webkit-scrollbar-thumb {
+
+background:#93c5fd;
+
+border-radius:20px;
+
+}
