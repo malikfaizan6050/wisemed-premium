@@ -50,7 +50,6 @@ export async function GET(request: Request) {
 
 
 
-
 // ======================================
 // Send WhatsApp Message
 // ======================================
@@ -59,7 +58,6 @@ async function sendWhatsAppMessage(
     phone:string,
     message:string
 ){
-
 
     try {
 
@@ -103,13 +101,11 @@ async function sendWhatsAppMessage(
 
 
 
-        const data =
-            await response.json();
-
+        const data = await response.json();
 
 
         console.log(
-            "WhatsApp API:",
+            "WhatsApp API response:",
             data
         );
 
@@ -120,18 +116,18 @@ async function sendWhatsAppMessage(
     }
     catch(error){
 
+
         console.error(
             "WhatsApp sending error:",
             error
         );
 
+
         return null;
 
     }
 
-
 }
-
 
 
 
@@ -150,46 +146,21 @@ export async function POST(
     try {
 
 
-        let body:any;
+        const body = await request.json();
 
-
-        try {
-
-            body = await request.json();
-
-        } catch(error){
-
-            console.error(
-                "JSON parse error:",
-                error
-            );
-
-            return NextResponse.json(
-                {
-                    received:true
-                },
-                {
-                    status:200
-                }
-            );
-
-        }
 
 
         console.log(
-            "FULL BODY:",
-            JSON.stringify(body,null,2)
-        );
-
-
-        console.log(
-            "Incoming WhatsApp:",
+            "Incoming WhatsApp Payload:",
             JSON.stringify(body,null,2)
         );
 
 
 
 
+
+
+        // Extract message
 
         const messageObject =
             body
@@ -215,20 +186,27 @@ export async function POST(
 
 
 
-        // Ignore delivery/status events
+
+        // Ignore status updates
 
         if(
             !phone ||
             !message
         ){
 
-            return NextResponse.json({
+            console.log(
+                "No user message received"
+            );
 
-                received:true,
 
-                message:"No message"
-
-            });
+            return NextResponse.json(
+                {
+                    received:true
+                },
+                {
+                    status:200
+                }
+            );
 
         }
 
@@ -236,13 +214,12 @@ export async function POST(
 
 
 
-        console.log({
 
+        console.log(
+            "USER:",
             phone,
-
             message
-
-        });
+        );
 
 
 
@@ -252,11 +229,11 @@ export async function POST(
 
 
         // ======================================
-        // Send message to n8n AI Agent
+        // Send to n8n AI Agent
         // ======================================
 
 
-        console.log("Webhook reached successfully");
+        const n8nResponse = await fetch(
 
             "https://malikfaizan6653.app.n8n.cloud/webhook/wisemed-whatsapp",
 
@@ -276,9 +253,7 @@ export async function POST(
 
                     phone,
 
-                    message,
-
-                    whatsappPayload:body
+                    message
 
                 })
 
@@ -289,17 +264,23 @@ export async function POST(
 
 
 
+        console.log(
+            "n8n status:",
+            n8nResponse.status
+        );
+
+
+
+
         const n8nData =
-            await n8nResponse.json()
+            await n8nResponse
+            .json()
             .catch(()=>null);
-
-
 
 
 
         console.log(
             "n8n response:",
-            n8nResponse.status,
             n8nData
         );
 
@@ -309,10 +290,8 @@ export async function POST(
 
 
 
-
         // ======================================
-        // If n8n returns reply
-        // send back to WhatsApp
+        // Send AI reply back to WhatsApp
         // ======================================
 
 
@@ -329,27 +308,38 @@ export async function POST(
             );
 
         }
+        else{
+
+
+            console.log(
+                "No reply returned from n8n"
+            );
+
+
+        }
 
 
 
 
 
 
+        return NextResponse.json(
 
+            {
 
-        // ======================================
-        // Success response
-        // ======================================
+                received:true,
 
+                n8nStatus:
+                n8nResponse.status
 
-        return NextResponse.json({
+            },
 
-            received:true,
+            {
+                status:200
+            }
 
-            n8nStatus:
-            n8nResponse.status
+        );
 
-        });
 
 
 
@@ -378,12 +368,13 @@ export async function POST(
             },
 
             {
+
                 status:500
+
             }
 
         );
 
     }
-
 
 }
