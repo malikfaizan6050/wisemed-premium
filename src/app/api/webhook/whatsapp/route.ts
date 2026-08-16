@@ -147,14 +147,39 @@ export async function POST(
     request:Request
 ){
 
-
     try {
 
 
+        let body:any;
 
-        const body =
-            await request.json();
 
+        try {
+
+            body = await request.json();
+
+        } catch(error){
+
+            console.error(
+                "JSON parse error:",
+                error
+            );
+
+            return NextResponse.json(
+                {
+                    received:true
+                },
+                {
+                    status:200
+                }
+            );
+
+        }
+
+
+        console.log(
+            "FULL BODY:",
+            JSON.stringify(body,null,2)
+        );
 
 
         console.log(
@@ -231,8 +256,7 @@ export async function POST(
         // ======================================
 
 
-        const n8nResponse =
-        await fetch(
+        console.log("Webhook reached successfully");
 
             "https://malikfaizan6653.app.n8n.cloud/webhook/wisemed-whatsapp",
 
