@@ -1,17 +1,5 @@
 import { NextResponse } from "next/server";
 
-import {
-    getSession,
-    saveSession
-} from "@/lib/whatsapp-session";
-
-
-import {
-    processMessage
-} from "@/lib/ai-agent";
-
-
-
 
 // ======================================
 // WhatsApp Webhook Verification
@@ -19,18 +7,12 @@ import {
 
 export async function GET(request: Request) {
 
-
     const { searchParams } = new URL(request.url);
 
 
-    const mode =
-        searchParams.get("hub.mode");
-
-    const token =
-        searchParams.get("hub.verify_token");
-
-    const challenge =
-        searchParams.get("hub.challenge");
+    const mode = searchParams.get("hub.mode");
+    const token = searchParams.get("hub.verify_token");
+    const challenge = searchParams.get("hub.challenge");
 
 
 
@@ -39,12 +21,15 @@ export async function GET(request: Request) {
         token === process.env.WHATSAPP_VERIFY_TOKEN
     ) {
 
-        return new Response(challenge ?? "", {
-    status: 200,
-    headers:{
-        "Content-Type":"text/plain"
-    }
-});
+        return new Response(
+            challenge || "",
+            {
+                status:200,
+                headers:{
+                    "Content-Type":"text/plain"
+                }
+            }
+        );
 
     }
 
@@ -66,11 +51,9 @@ export async function GET(request: Request) {
 
 
 
-
 // ======================================
 // Send WhatsApp Message
 // ======================================
-
 
 async function sendWhatsAppMessage(
     phone:string,
@@ -78,58 +61,74 @@ async function sendWhatsAppMessage(
 ){
 
 
-    const response = await fetch(
-
-        `https://graph.facebook.com/v26.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
-
-        {
-
-            method:"POST",
-
-            headers:{
-
-                Authorization:
-                `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
-
-                "Content-Type":
-                "application/json"
-
-            },
+    try {
 
 
-            body:JSON.stringify({
+        const response = await fetch(
 
-                messaging_product:
-                "whatsapp",
+            `https://graph.facebook.com/v26.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
 
-                to:phone,
+            {
 
-                type:"text",
+                method:"POST",
 
-                text:{
+                headers:{
 
-                    body:message
+                    Authorization:
+                    `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
 
-                }
+                    "Content-Type":
+                    "application/json"
 
-            })
-
-        }
-
-    );
+                },
 
 
-    const result =
-        await response.json();
+                body:JSON.stringify({
+
+                    messaging_product:"whatsapp",
+
+                    to:phone,
+
+                    type:"text",
+
+                    text:{
+                        body:message
+                    }
+
+                })
+
+            }
+
+        );
 
 
-    console.log(
-        "WhatsApp response:",
-        result
-    );
+
+        const data =
+            await response.json();
 
 
-    return result;
+
+        console.log(
+            "WhatsApp API:",
+            data
+        );
+
+
+        return data;
+
+
+    }
+    catch(error){
+
+        console.error(
+            "WhatsApp sending error:",
+            error
+        );
+
+        return null;
+
+    }
+
 
 }
 
@@ -144,7 +143,6 @@ async function sendWhatsAppMessage(
 // Receive WhatsApp Messages
 // ======================================
 
-
 export async function POST(
     request:Request
 ){
@@ -153,8 +151,6 @@ export async function POST(
     try {
 
 
-
-        // Read incoming WhatsApp payload
 
         const body =
             await request.json();
@@ -168,71 +164,6 @@ export async function POST(
 
 
 
-
-
-
-        // ======================================
-        // Send payload to n8n AI Agent
-        // ======================================
-
-
-        try {
-
-
-            const n8nResponse =
-            await fetch(
-
-                "https://malikfaizan6653.app.n8n.cloud/webhook/wisemed-whatsapp",
-
-                {
-
-                    method:"POST",
-
-                    headers:{
-
-                        "Content-Type":
-                        "application/json"
-
-                    },
-
-
-                    body:
-                    JSON.stringify(body)
-
-                }
-
-            );
-
-
-
-            console.log(
-                "n8n status:",
-                n8nResponse.status
-            );
-
-
-
-        }
-        catch(error){
-
-
-            console.error(
-                "n8n error:",
-                error
-            );
-
-
-        }
-
-
-
-
-
-
-
-        // ======================================
-        // Extract WhatsApp Message
-        // ======================================
 
 
         const messageObject =
@@ -259,27 +190,22 @@ export async function POST(
 
 
 
-        // Ignore webhook status updates
+        // Ignore delivery/status events
 
         if(
             !phone ||
             !message
         ){
 
-
             return NextResponse.json({
 
                 received:true,
 
-                message:
-                "No user message"
+                message:"No message"
 
             });
 
-
         }
-
-
 
 
 
@@ -301,60 +227,58 @@ export async function POST(
 
 
         // ======================================
-        // Load Conversation Session
+        // Send message to n8n AI Agent
         // ======================================
 
 
-        const session =
-            await getSession(
-                phone
-            );
+        const n8nResponse =
+        await fetch(
+
+            "https://malikfaizan6653.app.n8n.cloud/webhook/wisemed-whatsapp",
+
+            {
+
+                method:"POST",
+
+                headers:{
+
+                    "Content-Type":
+                    "application/json"
+
+                },
+
+
+                body:JSON.stringify({
+
+                    phone,
+
+                    message,
+
+                    whatsappPayload:body
+
+                })
+
+            }
+
+        );
 
 
 
 
-
-
-
-        // ======================================
-        // AI Processing
-        // ======================================
-
-
-        const aiResult =
-            processMessage(
-
-                message,
-
-                session.data
-
-            );
+        const n8nData =
+            await n8nResponse.json()
+            .catch(()=>null);
 
 
 
 
 
         console.log(
-            "AI RESULT:",
-            aiResult
+            "n8n response:",
+            n8nResponse.status,
+            n8nData
         );
 
-
-
-
-
-
-
-        // Save progress
-
-
-        await saveSession(
-
-            phone,
-
-            aiResult.collected
-
-        );
 
 
 
@@ -363,24 +287,22 @@ export async function POST(
 
 
         // ======================================
-        // Continue Conversation
+        // If n8n returns reply
+        // send back to WhatsApp
         // ======================================
 
 
         if(
-            !aiResult.completed
+            n8nData?.reply
         ){
 
-
-
             await sendWhatsAppMessage(
 
                 phone,
 
-                aiResult.nextQuestion
+                n8nData.reply
 
             );
-
 
         }
 
@@ -390,123 +312,18 @@ export async function POST(
 
 
 
+
         // ======================================
-        // Create CRM Lead
+        // Success response
         // ======================================
-
-
-        else{
-
-
-            const leadData = {
-
-
-                ...aiResult.collected,
-
-
-                phone,
-
-
-                status:
-                "new_inquiry",
-
-
-                priority:
-                "high",
-
-
-                leadScore:
-                85,
-
-
-                source:
-                "whatsapp_ai",
-
-
-                notes:
-                "Qualified through WhatsApp AI Receptionist"
-
-
-            };
-
-
-
-
-
-
-            const crmResponse =
-            await fetch(
-
-                `${process.env.NEXT_PUBLIC_APP_URL}/api/leads`,
-
-                {
-
-                    method:"POST",
-
-
-                    headers:{
-
-                        "Content-Type":
-                        "application/json",
-
-
-                        Authorization:
-                        `Bearer ${process.env.WISEMED_CRM_API_KEY}`
-
-                    },
-
-
-                    body:
-                    JSON.stringify(
-                        leadData
-                    )
-
-                }
-
-            );
-
-
-
-
-            console.log(
-                "CRM status:",
-                crmResponse.status
-            );
-
-
-
-
-
-
-            await sendWhatsAppMessage(
-
-                phone,
-
-
-                `Thank you for providing your information ✅
-
-Our RCM specialist will review your details and contact you shortly.
-
-Thank you for choosing WiseMed Billing.`
-
-            );
-
-
-        }
-
-
-
-
-
-
 
 
         return NextResponse.json({
 
             received:true,
 
-            completed:
-            aiResult.completed
+            n8nStatus:
+            n8nResponse.status
 
         });
 
@@ -532,19 +349,15 @@ Thank you for choosing WiseMed Billing.`
 
                 received:false,
 
-                error:
-                "Webhook failed"
+                error:"Webhook failed"
 
             },
 
             {
-
                 status:500
-
             }
 
         );
-
 
     }
 
