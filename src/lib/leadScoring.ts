@@ -1,206 +1,181 @@
-export function calculateLeadScore(data:any){
+export function calculateLeadScore(data: any) {
+  let score = 0;
 
-let score = 0;
+  // ==========================
+  // PROVIDER INFORMATION
+  // ==========================
+
+  // Email
+  if (data.email) {
+    score += 5;
+  }
 
+  // Phone
+  if (data.phone) {
+    score += 10;
+  }
 
-// ==========================
-// PROVIDER INFORMATION
-// ==========================
+  // Organization / Practice
+  if (data.organization || data.practiceName) {
+    score += 10;
+  }
 
+  // NPI
+  if (data.npi) {
+    score += 10;
+  }
 
-// Email
+  // Specialty
+  if (data.specialty) {
+    score += 5;
+  }
 
-if(data.email){
 
-score += 5;
+  // ==========================
+  // BUSINESS OPPORTUNITY
+  // ==========================
 
-}
+  // Monthly Claims / Claims Volume
+  const claims =
+    data.monthlyClaims ||
+    data.claimsVolume ||
+    0;
 
 
-// Phone
+  if (claims >= 5000) {
+    score += 25;
+  } 
+  else if (claims >= 2000) {
+    score += 20;
+  } 
+  else if (claims >= 500) {
+    score += 10;
+  }
+  else if (claims > 0) {
+    score += 5;
+  }
 
-if(data.phone){
 
-score += 10;
 
-}
+  // Monthly Collections / Estimated Revenue
+  const revenue =
+    data.monthlyCollections ||
+    data.estimatedRevenue ||
+    0;
 
 
-// Organization / Practice
+  if (revenue >= 1000000) {
+    score += 20;
+  }
+  else if (revenue >= 300000) {
+    score += 15;
+  }
+  else if (revenue >= 100000) {
+    score += 10;
+  }
+  else if (revenue >= 50000) {
+    score += 5;
+  }
 
-if(data.organization){
 
-score += 15;
 
-}
+  // Number of Providers
+  const providers =
+    data.numberOfProviders ||
+    data.providers ||
+    0;
 
 
-// NPI
+  if (providers >= 15) {
+    score += 10;
+  }
+  else if (providers >= 5) {
+    score += 5;
+  }
 
-if(data.npi){
 
-score += 15;
 
-}
+  // ==========================
+  // BILLING OPPORTUNITY
+  // ==========================
 
 
-// Specialty
+  // Billing Setup
+  if (data.billingSetup || data.currentBillingMethod) {
+    score += 5;
+  }
 
-if(data.specialty){
 
-score += 10;
+  // Interested Service
+  if (data.interestedService) {
+    score += 10;
+  }
 
-}
 
 
+  // ==========================
+  // BILLING PAIN POINTS
+  // ==========================
 
 
-// ==========================
-// BUSINESS OPPORTUNITY
-// ==========================
+  const challenge =
+    data.billingChallenges ||
+    data.message ||
+    "";
 
 
-// Claims Volume
+  if (challenge) {
 
-if(data.claimsVolume){
+    const text = challenge.toLowerCase();
 
 
-if(data.claimsVolume >= 2000){
+    if (
+      text.includes("denial") ||
+      text.includes("claim") ||
+      text.includes("revenue") ||
+      text.includes("billing") ||
+      text.includes("payment")
+    ) {
+      score += 10;
+    }
 
-score += 15;
 
-}
+    if (text.length > 150) {
+      score += 5;
+    }
 
-else if(data.claimsVolume >= 500){
+  }
 
-score += 10;
 
-}
 
-else{
+  // ==========================
+  // FINAL SCORE LIMIT
+  // ==========================
 
-score += 5;
+  if (score > 100) {
+    score = 100;
+  }
 
-}
 
-
-}
-
-
-
-
-// Estimated Revenue
-
-if(data.estimatedRevenue){
-
-
-if(data.estimatedRevenue >= 100000){
-
-score += 10;
-
-}
-
-else if(data.estimatedRevenue >=50000){
-
-score += 5;
-
-}
-
-
-}
-
-
-
-
-
-
-// ==========================
-// BILLING PAIN POINTS
-// ==========================
-
-
-
-if(data.message){
-
-
-const message =
-data.message.toLowerCase();
-
-
-
-if(
-message.includes("denial") ||
-message.includes("claim") ||
-message.includes("revenue") ||
-message.includes("billing") ||
-message.includes("payment")
-){
-
-score += 10;
-
-
-}
-
-
-
-if(data.message.length > 150){
-
-score += 5;
-
-}
-
-
-
-}
-
-
-
-
-
-
-
-// Safety limit
-
-if(score > 100){
-
-score = 100;
-
-}
-
-
-
-return score;
-
-
+  return score;
 }
 
 
 
 
 
+export function getLeadPriority(score: number) {
+
+  if (score >= 85) {
+    return "critical";
+  }
 
 
-export function getLeadPriority(score:number){
+  if (score >= 60) {
+    return "high";
+  }
 
 
-
-if(score >= 85){
-
-return "critical";
-
-}
-
-
-
-if(score >=60){
-
-return "high";
-
-}
-
-
-
-return "standard";
-
+  return "standard";
 
 }

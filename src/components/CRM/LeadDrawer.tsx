@@ -1,51 +1,28 @@
 "use client";
 
+import {
+    useState
+} from "react";
+
 
 import {
-X,
-Mail,
-Phone,
-Building2,
-Calendar,
-TrendingUp,
-ShieldCheck,
-Activity,
-ClipboardCheck,
-Save,
-Clock,
-DollarSign,
-PhoneCall,
-FileText,
-CheckCircle2
+    X,
+    Mail,
+    Phone,
+    Building2,
+    ClipboardCheck,
+    Activity,
+    Save,
+    User,
+    Calendar,
+    FileText,
+    TrendingUp
 } from "lucide-react";
 
 
 import {
-motion,
-AnimatePresence
-} from "framer-motion";
-
-
-import {
-doc,
-updateDoc,
-serverTimestamp
-} from "firebase/firestore";
-
-
-import {
-db
-} from "@/lib/firebase";
-
-
-import {
-Lead
+    Lead
 } from "@/types/crm";
-
-
-import {
-useState
-} from "react";
 
 
 
@@ -53,11 +30,11 @@ useState
 
 interface Props {
 
-lead:Lead|null;
+    lead: Lead | null;
 
-onClose:()=>void;
+    onClose: () => void;
 
-onUpdated?:()=>void;
+    onUpdated?: () => void;
 
 }
 
@@ -66,41 +43,25 @@ onUpdated?:()=>void;
 
 
 
+const pipelineOptions = [
 
-const statusOptions=[
+    ["new_inquiry","New Inquiry"],
 
-["new_inquiry","New Inquiry"],
+    ["initial_review","Initial Review"],
 
-["initial_review","Initial Review"],
+    ["discovery_scheduled","Discovery Scheduled"],
 
-["discovery_scheduled","Discovery Call Scheduled"],
+    ["requirements_collected","Requirements Collected"],
 
-["requirements_collected","Requirements Collected"],
+    ["proposal_sent","Proposal Sent"],
 
-["proposal_sent","Proposal Sent"],
+    ["contract_review","Contract Review"],
 
-["contract_review","Contract Review"],
+    ["onboarding","Onboarding"],
 
-["onboarding","Onboarding"],
+    ["active_client","Active Client"],
 
-["active_client","Active Client"],
-
-["lost","Lost Opportunity"]
-
-];
-
-
-
-
-
-
-const priorityOptions=[
-
-["critical","Critical"],
-
-["high","High"],
-
-["standard","Standard"]
+    ["lost","Lost Opportunity"]
 
 ];
 
@@ -109,19 +70,15 @@ const priorityOptions=[
 
 
 
+const priorityOptions = [
 
-const formatStatus=(status:string)=>{
+    ["critical","Critical"],
 
+    ["high","High"],
 
-return status
-.replaceAll("_"," ")
-.replace(/\b\w/g,
-letter=>letter.toUpperCase()
-);
+    ["standard","Standard"]
 
-
-};
-
+];
 
 
 
@@ -131,167 +88,148 @@ letter=>letter.toUpperCase()
 
 export default function LeadDrawer({
 
-lead,
+    lead,
 
-onClose,
+    onClose,
 
-onUpdated
+    onUpdated
 
 }:Props){
 
 
 
-const [notes,setNotes]=useState("");
+    const [notes,setNotes] = useState("");
 
-const [saving,setSaving]=useState(false);
+    const [saving,setSaving] = useState(false);
 
+    const opportunityScore =
+    Number(
+        lead?.opportunityScore ??
+        lead?.leadScore ??
+        0
+    );
 
 
 
 
+    if(!lead){
 
-if(!lead){
+        return null;
 
-return null;
+    }
 
-}
 
 
+    const fullName =
 
+        `${lead.firstName || ""} ${lead.lastName || ""}`.trim()
+        ||
+        "Healthcare Provider";
 
 
 
+    const claims =
 
+        lead.monthlyClaims ||
 
+        lead.claimsVolume ||
 
-const updateField=async(
+        0;
 
-field:string,
 
-value:string
 
-)=>{
+    const revenue =
 
+        lead.monthlyCollections ||
+        lead.estimatedRevenue ||
 
-try{
+        0;
 
 
-await updateDoc(
 
-doc(
-db,
-"consultations",
-lead.id
-),
+    const conversation =
 
-{
+        lead.conversationSummary ||
 
+        lead.message ||
 
-[field]:value,
+        "No conversation summary available";
 
 
-updatedAt:
-serverTimestamp()
 
+    const billing =
 
-}
+        lead.billingChallenge ||
 
+        lead.challenges?.join(", ") ||
 
-);
+        "No billing challenges recorded";
 
+    const updateField = async (
 
+        field:string,
 
-onUpdated?.();
+        value:any
 
+    ) => {
 
-}
 
-catch(error){
+        try {
 
 
-console.error(
-"Update failed:",
-error
-);
+            setSaving(true);
 
 
-}
 
+            await fetch(
+                `/api/leads/${lead.id}`,
+                {
 
+                    method:"PATCH",
 
-};
+                    headers:{
 
+                        "Content-Type":
+                        "application/json"
 
+                    },
 
 
+                    body:JSON.stringify({
 
+                        [field]:value
 
+                    })
 
+                }
+            );
 
 
 
-const saveNote=async()=>{
+            if(onUpdated){
 
+                onUpdated();
 
-if(!notes.trim()) return;
+            }
 
 
-setSaving(true);
 
+        }
+        catch(error){
 
+            console.error(
+                "Update failed",
+                error
+            );
 
-try{
+        }
+        finally{
 
+            setSaving(false);
 
-await updateDoc(
+        }
 
-doc(
-db,
-"consultations",
-lead.id
-),
-
-{
-
-
-notes,
-
-
-updatedAt:
-serverTimestamp()
-
-
-}
-
-
-);
-
-
-
-setNotes("");
-
-onUpdated?.();
-
-
-}
-
-
-finally{
-
-
-setSaving(false);
-
-
-}
-
-
-
-};
-
-
-
-
-
+    };
 
 
 
@@ -299,49 +237,29 @@ setSaving(false);
 
 return (
 
-
-<AnimatePresence>
-
-
-
-{
-
-lead &&
-
-<>
-
-
-{/* BACKDROP */}
-
-
-<motion.div
-
-
-initial={{
-opacity:0
-}}
-
-
-animate={{
-opacity:1
-}}
-
-
-exit={{
-opacity:0
-}}
-
-
-onClick={onClose}
-
+<div
 
 className="
 fixed
 inset-0
-z-40
-bg-slate-950/40
-backdrop-blur-sm
+z-50
+flex
+justify-end
 "
+
+>
+
+
+
+<div
+
+className="
+absolute
+inset-0
+bg-black/40
+"
+
+onClick={onClose}
 
 />
 
@@ -349,337 +267,141 @@ backdrop-blur-sm
 
 
 
-
-
-{/* DRAWER */}
-
-
-
-<motion.aside
-
-
-initial={{
-x:"100%"
-}}
-
-
-animate={{
-x:0
-}}
-
-
-exit={{
-x:"100%"
-}}
-
-
-transition={{
-
-type:"spring",
-
-stiffness:260,
-
-damping:30
-
-}}
-
-
+<aside
 
 className="
-fixed
-right-0
-top-0
-z-50
-h-screen
+relative
+h-full
 w-full
 max-w-xl
 overflow-y-auto
 bg-white
-shadow-2xl
-"
-
-
->
-
-
-
-
-
-
-
-
-
-{/* HEADER */}
-
-
-<div
-
-
-className="
-sticky
-top-0
-z-20
-border-b
-bg-white/90
-backdrop-blur
 p-6
+shadow-xl
 "
 
-
 >
+
 
 
 <div
 
 className="
 flex
-items-start
+items-center
 justify-between
-"
-
-
->
-
-
-<div
-
-className="
-flex
-gap-4
-items-center
+border-b
+pb-5
 "
 
 >
 
+<div className="flex items-center justify-between">
 
-<div
+  <div>
+    <h2
+      className="
+      text-xl
+      font-bold
+      text-slate-900
+      "
+    >
+      {fullName}
+    </h2>
 
-className="
-flex
-h-14
-w-14
-items-center
-justify-center
-rounded-2xl
-bg-blue-600
-text-xl
-font-bold
-text-white
-"
-
->
+    <p
+      className="
+      text-sm
+      text-slate-500
+      "
+    >
+      CRM Lead Profile
+    </p>
+  </div>
 
 
-{
-lead.firstName?.charAt(0)
-}
+  <button
+    onClick={onClose}
+    className="
+    rounded-full
+    p-2
+    hover:bg-slate-100
+    "
+  >
+    <X size={20}/>
+  </button>
 
-{
-lead.lastName?.charAt(0)
-}
-
+</div>
 
 </div>
 
 
 
+{/* PIPELINE */}
 
 
-<div>
+<div className="mt-6">
 
 
-<h2
-
-className="
-text-2xl
-font-bold
-text-slate-900
-"
-
->
-
-
-{lead.firstName} {lead.lastName}
-
-
-</h2>
-
-
-
-<p
+<label
 
 className="
-mt-1
-font-medium
-text-blue-600
-"
-
->
-
-
-{lead.organization}
-
-
-</p>
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-
-
-<button
-
-
-onClick={onClose}
-
-
-className="
-rounded-full
-p-2
-transition
-hover:bg-slate-100
-"
-
-
->
-
-
-<X size={22}/>
-
-
-</button>
-
-
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-
-
-
-
-
-<div
-
-className="
-space-y-8
-p-6
-"
-
->
-
-
-
-
-
-
-
-
-
-{/* PIPELINE CONTROL */}
-
-
-
-<div>
-
-
-<h3
-
-className="
-mb-3
-text-sm
+text-xs
 font-semibold
-uppercase
-tracking-wide
 text-slate-500
+uppercase
 "
 
 >
-
 
 RCM Pipeline
 
-
-</h3>
-
-
+</label>
 
 
 
 <select
 
-
-defaultValue={lead.status}
-
+value={lead.status}
 
 onChange={(e)=>
 
 updateField(
-
 "status",
-
 e.target.value
-
 )
 
 }
 
-
 className="
+mt-2
 w-full
 rounded-xl
 border
-border-slate-200
-bg-white
 px-4
 py-3
-font-medium
 "
-
 
 >
 
 
 {
-
-statusOptions.map(
-(option)=>(
-
+pipelineOptions.map((item)=>(
 
 <option
 
-key={option[0]}
+key={item[0]}
 
-value={option[0]}
+value={item[0]}
 
 >
 
-
-{option[1]}
-
+{item[1]}
 
 </option>
 
 
-)
-
-)
-
+))
 
 }
 
@@ -687,12 +409,7 @@ value={option[0]}
 </select>
 
 
-
 </div>
-
-
-
-
 
 
 
@@ -701,113 +418,90 @@ value={option[0]}
 {/* PRIORITY */}
 
 
+<div className="mt-5">
 
-<div>
 
-
-<h3
+<label
 
 className="
-mb-3
-text-sm
+text-xs
 font-semibold
-uppercase
-tracking-wide
 text-slate-500
+uppercase
 "
 
 >
 
-
 Opportunity Priority
 
-
-</h3>
+</label>
 
 
 
 
 <select
 
-
-defaultValue={lead.priority}
-
+value={lead.priority}
 
 onChange={(e)=>
 
 updateField(
-
 "priority",
-
 e.target.value
-
 )
 
 }
 
-
 className="
+mt-2
 w-full
 rounded-xl
 border
 px-4
 py-3
-font-medium
 "
-
 
 >
 
 
 {
-
-priorityOptions.map(
-(option)=>(
+priorityOptions.map((item)=>(
 
 
 <option
 
-key={option[0]}
+key={item[0]}
 
-value={option[0]}
+value={item[0]}
 
 >
 
-
-{option[1]}
-
+{item[1]}
 
 </option>
 
 
-)
-
-)
+))
 
 }
-
 
 
 </select>
 
 
-
 </div>
 
-{/* OPPORTUNITY SCORE */}
-
+{/* SCORE CARD */}
 
 <div
 
 className="
+mt-6
 rounded-3xl
 border
 border-blue-100
-bg-gradient-to-br
-from-blue-50
-via-white
-to-blue-100
-p-6
+bg-blue-50
+p-5
 "
 
 >
@@ -825,7 +519,6 @@ justify-between
 
 
 <div>
-
 
 <p
 
@@ -840,7 +533,6 @@ text-slate-500
 RCM Opportunity Score
 
 </p>
-
 
 
 <div
@@ -865,7 +557,9 @@ text-blue-600
 
 >
 
-{lead.leadScore}
+{
+opportunityScore
+}
 
 </span>
 
@@ -874,7 +568,7 @@ text-blue-600
 
 className="
 mb-2
-text-slate-400
+text-slate-500
 "
 
 >
@@ -890,9 +584,6 @@ text-slate-400
 </div>
 
 
-
-
-
 <div
 
 className="
@@ -904,17 +595,12 @@ text-white
 
 >
 
-<ShieldCheck size={32}/>
+<TrendingUp size={28}/>
 
 </div>
 
 
-
 </div>
-
-
-
-
 
 
 
@@ -925,7 +611,7 @@ mt-5
 h-2
 overflow-hidden
 rounded-full
-bg-slate-200
+bg-white
 "
 
 >
@@ -941,7 +627,7 @@ bg-blue-600
 
 style={{
 
-width:`${lead.leadScore}%`
+width:`${opportunityScore}%`
 
 }}
 
@@ -951,7 +637,6 @@ width:`${lead.leadScore}%`
 </div>
 
 
-
 </div>
 
 
@@ -961,12 +646,10 @@ width:`${lead.leadScore}%`
 
 
 
-
-{/* PROVIDER CONTACT */}
-
+{/* PROVIDER INFORMATION */}
 
 
-<div>
+<div className="mt-8">
 
 
 <h3
@@ -982,9 +665,9 @@ text-slate-900
 
 >
 
+<User size={18}/>
 
 Provider Information
-
 
 </h3>
 
@@ -1002,31 +685,118 @@ p-5
 >
 
 
-<div className="flex items-center gap-3 text-sm">
+<div
+
+className="
+flex
+items-center
+gap-3
+text-sm
+text-slate-700
+"
+
+>
 
 <Mail size={17}/>
 
-{lead.email}
+{
+
+lead.email ||
+
+"No email"
+
+}
+
 
 </div>
 
 
 
-<div className="flex items-center gap-3 text-sm">
+
+<div
+
+className="
+flex
+items-center
+gap-3
+text-sm
+text-slate-700
+"
+
+>
 
 <Phone size={17}/>
 
-{lead.phone || "No phone"}
+{
+
+lead.phone ||
+
+"No phone"
+
+}
+
 
 </div>
 
 
 
-<div className="flex items-center gap-3 text-sm">
+
+
+<div
+
+className="
+flex
+items-center
+gap-3
+text-sm
+text-slate-700
+"
+
+>
 
 <Building2 size={17}/>
 
-{lead.specialty || "Medical Practice"}
+
+{
+
+lead.organization ||
+
+"Medical Practice"
+
+}
+
+
+</div>
+
+
+
+
+
+<div
+
+className="
+flex
+items-center
+gap-3
+text-sm
+text-slate-700
+"
+
+>
+
+<ClipboardCheck size={17}/>
+
+
+NPI:
+
+{
+
+lead.npi ||
+
+"Not provided"
+
+}
+
 
 </div>
 
@@ -1035,27 +805,18 @@ p-5
 </div>
 
 
-
 </div>
 
+{/* PRACTICE INTELLIGENCE */}
 
 
-
-
-
-
-
-
-{/* RCM BUSINESS INTELLIGENCE */}
-
-
-
-<div>
+<div className="mt-8">
 
 
 <h3
 
 className="
+mb-4
 flex
 items-center
 gap-2
@@ -1065,103 +826,70 @@ text-slate-900
 
 >
 
-
 <Activity size={18}/>
 
 Practice Intelligence
-
 
 </h3>
 
 
 
 
+
 <div
 
 className="
-mt-4
 grid
+grid-cols-2
 gap-4
-sm:grid-cols-2
 "
 
 >
-
-
 
 
 <div
 
 className="
-rounded-2xl
-bg-slate-50
-p-4
+rounded-3xl
+border
+bg-white
+p-5
 "
 
 >
 
 
-<p className="text-xs text-slate-500">
+<p
+
+className="
+text-xs
+text-slate-500
+"
+
+>
 
 Monthly Claims
 
 </p>
 
 
-<p className="mt-1 font-bold">
-
-{
-
-lead.monthlyClaims ||
-
-lead.claimsVolume ||
-
-"Not provided"
-
-}
-
-
-</p>
-
-
-</div>
-
-
-
-
-
-
-
-<div
+<p
 
 className="
-rounded-2xl
-bg-slate-50
-p-4
+mt-2
+font-bold
+text-slate-900
 "
 
 >
 
-
-<p className="text-xs text-slate-500">
-
-Estimated Revenue
-
-</p>
-
-
-<p className="mt-1 flex items-center gap-1 font-bold">
-
-<DollarSign size={15}/>
-
-
 {
 
-lead.estimatedRevenue
+claims
 
 ?
 
-lead.estimatedRevenue
+`${claims} claims`
 
 :
 
@@ -1169,113 +897,12 @@ lead.estimatedRevenue
 
 }
 
-
 </p>
 
 
 </div>
 
 
-
-
-
-
-
-<div
-
-className="
-rounded-2xl
-bg-slate-50
-p-4
-"
-
->
-
-
-<p className="text-xs text-slate-500">
-
-Billing Method
-
-</p>
-
-
-<p className="mt-1 font-bold capitalize">
-
-{
-
-lead.currentBillingMethod
-?
-
-lead.currentBillingMethod.replace("_"," ")
-
-:
-
-"Unknown"
-
-}
-
-
-</p>
-
-
-</div>
-
-
-
-
-
-
-
-<div
-
-className="
-rounded-2xl
-bg-slate-50
-p-4
-"
-
->
-
-
-<p className="text-xs text-slate-500">
-
-EHR System
-
-</p>
-
-
-<p className="mt-1 font-bold">
-
-{
-
-lead.ehrSystem ||
-
-"Unknown"
-
-}
-
-
-</p>
-
-
-</div>
-
-
-
-</div>
-
-
-</div>
-
-
-
-
-
-
-
-
-
-{/* QUICK ACTIONS */}
 
 
 
@@ -1284,106 +911,87 @@ lead.ehrSystem ||
 className="
 rounded-3xl
 border
-border-blue-100
-bg-blue-50
+bg-white
 p-5
 "
 
 >
 
 
-<h3
+<p
 
 className="
+text-xs
+text-slate-500
+"
+
+>
+
+Estimated Revenue
+
+</p>
+
+
+<p
+
+className="
+mt-2
 font-bold
 text-slate-900
 "
 
 >
 
-Quick Actions
+{
 
-</h3>
+revenue
+
+?
+
+`$${revenue}`
+
+:
+
+"Not provided"
+
+}
+
+</p>
+
+
+</div>
 
 
 
 
-<div
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+
+{/* BILLING INFORMATION */}
+
+
+
+<div className="mt-8">
+
+
+<h3
 
 className="
-mt-4
-grid
-gap-3
-"
-
->
-
-
-
-<button
-
-onClick={()=>updateField(
-
-"status",
-
-"discovery_scheduled"
-
-)}
-
-className="
+mb-4
 flex
 items-center
-justify-center
 gap-2
-rounded-xl
-bg-white
-px-4
-py-3
-font-semibold
-text-blue-700
-shadow-sm
-hover:bg-blue-100
-"
-
->
-
-
-<PhoneCall size={18}/>
-
-Schedule Discovery Call
-
-
-</button>
-
-
-
-
-
-
-
-<button
-
-onClick={()=>updateField(
-
-"status",
-
-"proposal_sent"
-
-)}
-
-className="
-flex
-items-center
-justify-center
-gap-2
-rounded-xl
-bg-white
-px-4
-py-3
-font-semibold
-text-blue-700
-shadow-sm
-hover:bg-blue-100
+font-bold
+text-slate-900
 "
 
 >
@@ -1391,118 +999,62 @@ hover:bg-blue-100
 
 <FileText size={18}/>
 
-Send Proposal
-
-
-</button>
-
-
-
-
-
-
-
-<button
-
-onClick={()=>updateField(
-
-"status",
-
-"onboarding"
-
-)}
-
-className="
-flex
-items-center
-justify-center
-gap-2
-rounded-xl
-bg-white
-px-4
-py-3
-font-semibold
-text-blue-700
-shadow-sm
-hover:bg-blue-100
-"
-
->
-
-
-<CheckCircle2 size={18}/>
-
-Start Onboarding
-
-
-</button>
-
-
-
-
-</div>
-
-
-</div>
-
-
-
-
-
-
-
-
-
-{/* MESSAGE */}
-
-
-
-<div>
-
-
-<h3
-
-className="
-flex
-items-center
-gap-2
-font-bold
-"
-
->
-
-
-<ClipboardCheck size={18}/>
-
-Provider Requirements
-
+Billing Information
 
 </h3>
 
 
 
-<p
+
+
+<div
 
 className="
-mt-3
-rounded-2xl
+space-y-4
+rounded-3xl
 bg-slate-50
 p-5
-leading-relaxed
-text-slate-700
 "
 
 >
 
 
+
+<div>
+
+<p
+
+className="
+text-xs
+font-semibold
+uppercase
+text-slate-500
+"
+
+>
+
+Current Billing Method
+
+</p>
+
+
+<p
+
+className="
+mt-1
+text-sm
+font-medium
+text-slate-800
+"
+
+>
+
 {
 
-lead.message ||
-
-"No message submitted"
+lead.billingSetup ||
+"Unknown"
 
 }
-
 
 </p>
 
@@ -1514,26 +1066,181 @@ lead.message ||
 
 
 
+<div>
+
+<p
+
+className="
+text-xs
+font-semibold
+uppercase
+text-slate-500
+"
+
+>
+
+EHR System
+
+</p>
+
+
+<p
+
+className="
+mt-1
+text-sm
+font-medium
+text-slate-800
+"
+
+>
+
+{
+
+lead.ehrSystem ||
+
+"Not provided"
+
+}
+
+</p>
+
+
+</div>
 
 
 
-{/* NOTES */}
 
 
 
 <div>
 
-
-<h3
+<p
 
 className="
-mb-3
-font-bold
+text-xs
+font-semibold
+uppercase
+text-slate-500
 "
 
 >
 
-Internal Notes
+Billing Challenges
+
+</p>
+
+
+<p
+
+className="
+mt-1
+text-sm
+font-medium
+text-slate-800
+"
+
+>
+
+{
+
+billing
+
+}
+
+</p>
+
+
+</div>
+
+
+
+
+</div>
+
+
+</div>
+
+{/* ============================
+    AI CONVERSATION
+============================ */}
+
+
+<div className="mt-8">
+
+
+<h3
+
+className="
+mb-4
+flex
+items-center
+gap-2
+font-bold
+text-slate-900
+"
+
+>
+
+<Mail size={18}/>
+
+AI Conversation Summary
+
+</h3>
+
+
+
+<div
+
+className="
+rounded-3xl
+bg-slate-50
+p-5
+text-sm
+leading-relaxed
+text-slate-700
+"
+
+>
+
+{conversation}
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+{/* ============================
+    Notes
+============================ */}
+
+
+
+<div className="mt-8">
+
+
+<h3
+
+className="
+mb-4
+flex
+items-center
+gap-2
+font-bold
+text-slate-900
+"
+
+>
+
+<FileText size={18}/>
+
+CRM Notes
 
 </h3>
 
@@ -1542,7 +1249,7 @@ Internal Notes
 <textarea
 
 
-value={notes}
+value={notes || lead.notes || ""}
 
 
 onChange={(e)=>
@@ -1552,43 +1259,50 @@ setNotes(e.target.value)
 }
 
 
-placeholder="
-
-Add sales notes...
-
-"
-
+placeholder="Add sales notes..."
 
 className="
-h-28
+min-h-[120px]
 w-full
-rounded-xl
+rounded-3xl
 border
-border-slate-200
 p-4
+text-sm
 outline-none
-focus:border-blue-600
+focus:ring-2
+focus:ring-blue-500
 "
 
 />
 
 
 
-
-
 <button
 
 
-onClick={saveNote}
+onClick={()=>
+
+
+updateField(
+
+"notes",
+
+notes
+
+)
+
+
+}
 
 
 disabled={saving}
 
 
 className="
-mt-3
+mt-4
 flex
 items-center
+justify-center
 gap-2
 rounded-xl
 bg-blue-600
@@ -1596,10 +1310,8 @@ px-5
 py-3
 font-semibold
 text-white
-hover:bg-blue-700
 disabled:opacity-50
 "
-
 
 >
 
@@ -1617,7 +1329,7 @@ saving
 
 :
 
-"Save Note"
+"Save Notes"
 
 }
 
@@ -1629,168 +1341,24 @@ saving
 </div>
 
 
-
-
-
-
-
-
-
-{/* ACTIVITY */}
-
-
-
-<div>
-
-
-<h3
-
-className="
-flex
-items-center
-gap-2
-font-bold
-"
-
->
-
-
-<Clock size={18}/>
-
-Activity Timeline
-
-
-</h3>
-
-
-
+{/* RECENT ACTIVITY */}
 
 <div
-
-className="
-mt-4
-space-y-4
-rounded-2xl
-bg-slate-50
-p-5
-text-sm
-text-slate-600
-"
-
+  className="
+  rounded-xl
+  bg-slate-50
+  p-4
+  text-sm
+  text-slate-500
+  "
 >
-
-
-<div>
-
-<span className="
-mr-2
-inline-block
-h-2
-w-2
-rounded-full
-bg-blue-600
-"
-
-/>
-
-Lead submitted
-
+  No activity recorded yet.
 </div>
 
-
-
-
-<div>
-
-<span className="
-mr-2
-inline-block
-h-2
-w-2
-rounded-full
-bg-green-600
-"
-
-/>
-
-RCM assessment started
+</aside>
 
 </div>
-
-
-
-</div>
-
-
-</div>
-
-
-
-
-
-
-
-
-
-{/* CREATED */}
-
-
-
-<div
-
-className="
-flex
-items-center
-gap-2
-text-sm
-text-slate-500
-"
-
->
-
-
-<Calendar size={16}/>
-
-
-Created:
-
-{
-
-lead.createdAt?.toDate
-
-?
-
-lead.createdAt.toDate().toLocaleDateString()
-
-:
-
-"Recently"
-
-}
-
-
-
-</div>
-
-
-
-
-
-</div>
-
-
-</motion.aside>
-
-
-</>
-
-}
-
-
-</AnimatePresence>
-
 
 );
-
 
 }

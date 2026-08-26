@@ -11,7 +11,6 @@ useState
 import {
 collection,
 onSnapshot,
-orderBy,
 query
 } from "firebase/firestore";
 
@@ -36,12 +35,10 @@ useRouter
 import {
 Users,
 Clock,
-CheckCircle,
+BriefcaseBusiness,
 Flame,
 LogOut,
-Search,
-BriefcaseBusiness,
-PhoneCall
+Search
 } from "lucide-react";
 
 
@@ -53,10 +50,12 @@ import LeadDrawer from "@/components/CRM/LeadDrawer";
 
 import PipelineOverview from "@/components/CRM/PipelineOverview";
 
+import CreateLeadModal from "@/components/CRM/CreateLeadModal";
+
+
 import {
 Lead
 } from "@/types/crm";
-
 
 
 
@@ -70,30 +69,43 @@ const router = useRouter();
 
 
 
-const [leads,setLeads]=useState<Lead[]>([]);
-
-const [loading,setLoading]=useState(true);
-
-const [checkingAuth,setCheckingAuth]=useState(true);
+const [leads,setLeads] =
+useState<Lead[]>([]);
 
 
-const [search,setSearch]=useState("");
 
-const [filter,setFilter]=useState("all");
+const [loading,setLoading] =
+useState(true);
 
 
-const [selectedLead,setSelectedLead]
-=
+
+const [checkingAuth,setCheckingAuth] =
+useState(true);
+
+
+
+const [search,setSearch] =
+useState("");
+
+
+
+const [filter,setFilter] =
+useState("all");
+
+
+
+const [selectedLead,setSelectedLead] =
 useState<Lead|null>(null);
 
+const [createLeadOpen,setCreateLeadOpen] =
+useState(false);
 
 
 
+// ==========================
+// AUTH CHECK
+// ==========================
 
-
-
-
-// AUTH
 
 useEffect(()=>{
 
@@ -127,17 +139,17 @@ setCheckingAuth(false);
 return ()=>unsubscribe();
 
 
+
 },[router]);
 
 
 
 
 
+// ==========================
+// FIRESTORE CRM LEADS
+// ==========================
 
-
-
-
-// FIRESTORE
 
 useEffect(()=>{
 
@@ -146,19 +158,16 @@ if(checkingAuth) return;
 
 
 
-const q=query(
+const q =
+query(
 
 collection(
 db,
-"consultations"
-),
-
-orderBy(
-"createdAt",
-"desc"
+"crm_leads"
 )
 
 );
+
 
 
 
@@ -171,89 +180,208 @@ q,
 (snapshot)=>{
 
 
+
 const data:Lead[] =
 
 snapshot.docs.map((doc)=>{
 
 
-const item:any = doc.data();
+const item:any =
+doc.data();
+
 
 
 
 return {
 
-
 id:doc.id,
-
 
 firstName:item.firstName ?? "",
 
 lastName:item.lastName ?? "",
+
 
 email:item.email ?? "",
 
 phone:item.phone ?? "",
 
 
-organization:item.organization ?? "",
+
+// ==========================
+// PROVIDER INFORMATION
+// ==========================
 
 
-specialty:item.specialty ?? "",
+organization:
+item.organization ?? "",
 
 
-npi:item.npi ?? "",
+specialty:
+item.specialty ?? "",
 
 
-
-claimsVolume:item.claimsVolume ?? 0,
-
-estimatedRevenue:item.estimatedRevenue ?? 0,
-
-currentBillingMethod:item.currentBillingMethod ?? "unknown",
-
-ehrSystem:item.ehrSystem ?? "",
-
-denialRate:item.denialRate ?? 0,
-
-monthlyClaims:item.monthlyClaims ?? 0,
-
-practiceSize:item.practiceSize ?? "",
+npi:
+item.npi ?? "",
 
 
+practiceLocation:
+item.practiceLocation ?? "",
 
-status:item.status ?? "new_inquiry",
 
-
-priority:item.priority ?? "standard",
+providerCount:
+item.providerCount ?? 0,
 
 
 
-leadScore:item.leadScore ?? 0,
 
-opportunityScore:item.opportunityScore ?? 0,
-
-
-
-message:item.message ?? "",
+// ==========================
+// RCM INFORMATION
+// ==========================
 
 
-challenges:item.challenges ?? [],
+claimsVolume:
+item.claimsVolume ?? 0,
 
 
-nextAction:item.nextAction ?? "Review provider inquiry",
+monthlyClaims:
+item.monthlyClaims ?? 0,
 
 
-assignedTo:item.assignedTo ?? null,
+monthlyCollections:
+item.monthlyCollections ?? 0,
 
 
-source:item.source ?? "website",
+estimatedRevenue:
+item.estimatedRevenue ?? 0,
+
+
+currentBillingMethod:
+item.currentBillingMethod ?? "unknown",
+
+
+billingSetup:
+item.billingSetup ?? "",
+
+
+billingChallenge:
+item.billingChallenge ?? "",
+
+
+ehrSystem:
+item.ehrSystem ?? "",
+
+
+denialRate:
+item.denialRate ?? 0,
+
+
+practiceSize:
+item.practiceSize ?? "",
+
+
+interestedService:
+item.interestedService ?? "",
 
 
 
-createdAt:item.createdAt ?? null,
 
-updatedAt:item.updatedAt ?? null
 
+// ==========================
+// AI INFORMATION
+// ==========================
+
+
+conversationSummary:
+item.conversationSummary ?? "",
+
+
+preferredContactMethod:
+item.preferredContactMethod ?? "",
+
+
+preferredContactTime:
+item.preferredContactTime ?? "",
+
+
+contactConsent:
+item.contactConsent ?? false,
+
+
+message:
+item.message ?? "",
+
+
+
+
+
+// ==========================
+// CRM MANAGEMENT
+// ==========================
+
+
+status:
+item.status ?? "new_inquiry",
+
+
+priority:
+item.priority ?? "standard",
+
+
+leadScore:
+item.leadScore ?? 0,
+
+
+opportunityScore:
+item.opportunityScore ??
+item.leadScore ??
+0,
+
+
+
+assignedTo:
+item.assignedTo ?? null,
+
+
+assignedBy:
+item.assignedBy ?? null,
+
+
+assignedAt:
+item.assignedAt ?? null,
+
+
+
+notes:
+item.notes ?? "",
+
+
+challenges:
+item.challenges ?? [],
+
+
+nextAction:
+item.nextAction ??
+"Review provider inquiry",
+
+
+
+activity:
+item.activity ?? [],
+
+
+
+
+source:
+item.source ?? "website",
+
+
+
+createdAt:
+item.createdAt ?? null,
+
+
+updatedAt:
+item.updatedAt ?? null
 
 
 };
@@ -284,15 +412,12 @@ return ()=>unsubscribe();
 
 
 
-
-
-
-
-
-
+// ==========================
 // LOGOUT
+// ==========================
 
-const handleLogout=async()=>{
+
+const handleLogout = async()=>{
 
 
 await signOut(auth);
@@ -307,12 +432,10 @@ router.replace("/login");
 
 
 
-
-
-
-
-
+// ==========================
 // KPI
+// ==========================
+
 
 const totalLeads =
 leads.length;
@@ -320,30 +443,24 @@ leads.length;
 
 
 const newInquiry =
-
 leads.filter(
-
-l=>l.status==="new_inquiry"
-
+(l)=>
+l.status==="new_inquiry"
 ).length;
 
 
 
 const activeClients =
-
 leads.filter(
-
-l=>l.status==="active_client"
-
+(l)=>
+l.status==="active_client"
 ).length;
 
 
 
 const priorityLeads =
-
 leads.filter(
-
-l=>
+(l)=>
 
 l.priority==="critical"
 
@@ -358,12 +475,13 @@ l.priority==="high"
 
 
 
-
-
-
+// ==========================
+// SEARCH + FILTER
+// ==========================
 
 
 const filteredLeads =
+
 useMemo(()=>{
 
 
@@ -421,14 +539,6 @@ search,
 filter
 ]);
 
-
-
-
-
-
-
-
-
 if(checkingAuth){
 
 
@@ -453,10 +563,6 @@ Checking authentication...
 );
 
 }
-
-
-
-
 
 
 
@@ -488,16 +594,15 @@ max-w-7xl
 
 
 
-
-
+{/* HEADER */}
 
 
 <div
 
 className="
 flex
-justify-between
 items-center
+justify-between
 "
 
 >
@@ -521,6 +626,7 @@ WiseMedBilling CRM
 </h1>
 
 
+
 <p
 
 className="
@@ -535,8 +641,37 @@ Healthcare Revenue Cycle Management Platform
 </p>
 
 
+
 </div>
 
+
+
+
+
+
+<div className="flex items-center gap-3">
+
+
+<button
+
+onClick={()=>
+setCreateLeadOpen(true)
+}
+
+className="
+rounded-xl
+bg-blue-600
+px-5
+py-3
+font-semibold
+text-white
+"
+
+>
+
++ Create Lead
+
+</button>
 
 
 
@@ -559,13 +694,15 @@ text-white
 
 >
 
-
 <LogOut size={18}/>
 
 Logout
 
-
 </button>
+
+
+</div>
+
 
 
 </div>
@@ -576,6 +713,9 @@ Logout
 
 
 
+
+
+{/* STATS */}
 
 
 <div
@@ -604,6 +744,7 @@ description="Healthcare inquiries"
 
 
 
+
 <StatsCard
 
 title="New Inquiries"
@@ -615,6 +756,7 @@ icon={Clock}
 description="Needs qualification"
 
 />
+
 
 
 
@@ -632,6 +774,7 @@ description="Managed accounts"
 
 
 
+
 <StatsCard
 
 title="Priority Opportunities"
@@ -645,6 +788,7 @@ description="Needs attention"
 />
 
 
+
 </div>
 
 
@@ -654,6 +798,8 @@ description="Needs attention"
 
 
 
+
+{/* SEARCH */}
 
 
 <div
@@ -682,18 +828,26 @@ px-4
 
 >
 
+
 <Search size={20}/>
+
 
 
 <input
 
+
 value={search}
 
-onChange={
-e=>setSearch(e.target.value)
+
+onChange={(e)=>
+
+setSearch(e.target.value)
+
 }
 
+
 placeholder="Search providers, practices..."
+
 
 className="
 w-full
@@ -711,13 +865,19 @@ outline-none
 
 
 
+
 <select
+
 
 value={filter}
 
-onChange={
-e=>setFilter(e.target.value)
+
+onChange={(e)=>
+
+setFilter(e.target.value)
+
 }
+
 
 className="
 rounded-xl
@@ -736,11 +896,13 @@ All Pipeline
 </option>
 
 
+
 <option value="new_inquiry">
 
 New Inquiry
 
 </option>
+
 
 
 <option value="discovery_scheduled">
@@ -750,11 +912,13 @@ Discovery Scheduled
 </option>
 
 
+
 <option value="proposal_sent">
 
 Proposal Sent
 
 </option>
+
 
 
 <option value="active_client">
@@ -764,7 +928,9 @@ Active Client
 </option>
 
 
+
 </select>
+
 
 
 
@@ -775,6 +941,10 @@ Active Client
 
 
 
+
+
+
+{/* PIPELINE */}
 
 
 
@@ -792,14 +962,25 @@ leads={filteredLeads}
 
 
 
+{/* TABLE */}
+
+
+
 {
 
 loading
 
+
 ?
 
 
-<p className="mt-6">
+<p
+
+className="
+mt-6
+"
+
+>
 
 Loading providers...
 
@@ -813,16 +994,16 @@ Loading providers...
 
 leads={filteredLeads}
 
-onSelect={
-(lead)=>setSelectedLead(lead)
+onSelect={(lead)=>
+
+setSelectedLead(lead)
+
 }
 
 />
 
 
 }
-
-
 
 
 
@@ -838,20 +1019,31 @@ onSelect={
 
 <LeadDrawer
 
+
 lead={selectedLead}
 
+
 onClose={()=>
+
 setSelectedLead(null)
+
+}
+
+
+/>
+
+<CreateLeadModal
+
+open={createLeadOpen}
+
+onClose={()=>
+setCreateLeadOpen(false)
 }
 
 />
 
-
-
-
-
-
 </main>
+
 
 );
 

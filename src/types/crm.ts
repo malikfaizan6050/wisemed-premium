@@ -3,7 +3,9 @@ export interface Lead {
     id: string;
 
 
+    // ==========================
     // Provider Information
+    // ==========================
 
     firstName: string;
 
@@ -22,19 +24,39 @@ export interface Lead {
     npi?: string;
 
 
+    practiceLocation?: string;
 
+    providerCount?: number;
+
+
+
+    // ==========================
     // RCM Business Information
+    // ==========================
 
     claimsVolume?: number;
 
     monthlyClaims?: number;
 
 
+    monthlyCollections?: number;
+
+
     currentBillingMethod?:
     | "in_house"
     | "outsourced"
     | "hybrid"
-    | "unknown";
+    | "unknown"
+    | string;
+
+
+    billingSetup?: string;
+
+
+    billingChallenge?: string;
+
+
+    interestedService?: string;
 
 
     ehrSystem?: string;
@@ -50,7 +72,29 @@ export interface Lead {
 
 
 
-    // Pipeline
+    // ==========================
+    // AI Conversation Information
+    // ==========================
+
+    conversationSummary?: string;
+
+
+    conversation_summary?: string;
+
+
+    preferredContactMethod?: string;
+
+
+    preferredContactTime?: string;
+
+
+    contactConsent?: boolean;
+
+
+
+    // ==========================
+    // Pipeline Management
+    // ==========================
 
     status:
     | "new_inquiry"
@@ -61,18 +105,22 @@ export interface Lead {
     | "contract_review"
     | "onboarding"
     | "active_client"
-    | "lost";
+    | "lost"
+    | string;
 
 
 
     priority:
     | "critical"
     | "high"
-    | "standard";
+    | "standard"
+    | string;
 
 
 
-    // Scoring
+    // ==========================
+    // Lead Scoring
+    // ==========================
 
     leadScore: number;
 
@@ -80,11 +128,15 @@ export interface Lead {
 
 
 
-    // Notes
+    // ==========================
+    // CRM Notes
+    // ==========================
 
-    message: string;
+    message?: string;
+
 
     challenges?: string[];
+
 
     notes?: string;
 
@@ -92,9 +144,25 @@ export interface Lead {
     nextAction?: string;
 
 
+
+    // ==========================
+    // Sales Assignment
+    // ==========================
+
     assignedTo?: string | null;
 
 
+
+    assignedBy?: string | null;
+
+
+    assignedAt?: any;
+
+
+
+    // ==========================
+    // Activity Tracking
+    // ==========================
 
     activity?: {
 
@@ -108,14 +176,23 @@ export interface Lead {
 
 
 
+    // ==========================
+    // Lead Source
+    // ==========================
+
     source?:
     | "website"
     | "whatsapp_ai"
     | "referral"
     | "campaign"
-    | "manual";
+    | "manual"
+    | string;
 
 
+
+    // ==========================
+    // System Dates
+    // ==========================
 
     createdAt:any;
 

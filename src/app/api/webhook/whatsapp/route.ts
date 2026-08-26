@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/firebase-admin";
 
 
 // ======================================
@@ -10,9 +11,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
 
-    const mode = searchParams.get("hub.mode");
-    const token = searchParams.get("hub.verify_token");
-    const challenge = searchParams.get("hub.challenge");
+    const mode =
+        searchParams.get("hub.mode");
+
+    const token =
+        searchParams.get("hub.verify_token");
+
+    const challenge =
+        searchParams.get("hub.challenge");
 
 
 
@@ -45,6 +51,8 @@ export async function GET(request: Request) {
     );
 
 }
+
+
 
 
 
@@ -83,7 +91,8 @@ async function sendWhatsAppMessage(
 
                 body:JSON.stringify({
 
-                    messaging_product:"whatsapp",
+                    messaging_product:
+                    "whatsapp",
 
                     to:phone,
 
@@ -100,12 +109,12 @@ async function sendWhatsAppMessage(
         );
 
 
-
-        const data = await response.json();
+        const data =
+        await response.json();
 
 
         console.log(
-            "WhatsApp API response:",
+            "WhatsApp API:",
             data
         );
 
@@ -116,9 +125,8 @@ async function sendWhatsAppMessage(
     }
     catch(error){
 
-
         console.error(
-            "WhatsApp sending error:",
+            "WhatsApp send error:",
             error
         );
 
@@ -135,6 +143,176 @@ async function sendWhatsAppMessage(
 
 
 
+
+
+// ======================================
+// Create CRM Lead
+// ======================================
+
+async function createCRMLead(
+    lead:any,
+    phone:string
+){
+
+
+    try {
+
+
+        await db
+        .collection("crm_leads")
+        .add({
+
+
+            firstName:
+            lead.firstName || "",
+
+
+            lastName:
+            lead.lastName || "",
+
+
+            email:
+            lead.email || "",
+
+
+            phone:
+            lead.phone || phone,
+
+
+            organization:
+            lead.organization || "",
+
+
+            specialty:
+            lead.specialty || "",
+
+
+            npi:
+            lead.npi || "",
+
+
+
+            claimsVolume:
+            lead.monthlyClaims || 0,
+
+
+            monthlyClaims:
+            lead.monthlyClaims || 0,
+
+
+
+            currentBillingMethod:
+            lead.currentBillingMethod || "unknown",
+
+
+
+            ehrSystem:
+            lead.ehrSystem || "",
+
+
+
+            denialRate:
+            0,
+
+
+            estimatedRevenue:
+            0,
+
+
+
+            status:
+            "new_inquiry",
+
+
+
+            priority:
+            "standard",
+
+
+
+            leadScore:
+            0,
+
+
+
+            opportunityScore:
+            0,
+
+
+
+            message:
+            lead.message || "",
+
+
+
+            challenges:
+            lead.challenges || [],
+
+
+
+            notes:
+            "",
+
+
+
+            nextAction:
+            "Review WhatsApp lead",
+
+
+
+            assignedTo:
+            null,
+
+
+
+            source:
+            "whatsapp_ai",
+
+
+
+            whatsappNumber:
+            phone,
+
+
+
+            createdAt:
+            new Date(),
+
+
+
+            updatedAt:
+            new Date()
+
+
+        });
+
+
+
+        console.log(
+            "CRM lead created successfully"
+        );
+
+
+    }
+    catch(error){
+
+        console.error(
+            "CRM creation error:",
+            error
+        );
+
+    }
+
+}
+
+
+
+
+
+
+
+
+
 // ======================================
 // Receive WhatsApp Messages
 // ======================================
@@ -143,146 +321,65 @@ export async function POST(
     request:Request
 ){
 
-    try {
+try {
 
 
-        const body = await request.json();
-
-
-
-        console.log(
-            "Incoming WhatsApp Payload:",
-            JSON.stringify(body,null,2)
-        );
+    const body =
+    await request.json();
 
 
 
-
-
-
-        // Extract message
-
-        const messageObject =
-            body
-            ?.entry?.[0]
-            ?.changes?.[0]
-            ?.value
-            ?.messages?.[0];
-
-
-
-        const phone =
-            messageObject?.from;
-
-
-
-        const message =
-            messageObject
-            ?.text
-            ?.body;
+    console.log(
+        "Incoming:",
+        JSON.stringify(body,null,2)
+    );
 
 
 
 
+    const messageObject =
+        body
+        ?.entry?.[0]
+        ?.changes?.[0]
+        ?.value
+        ?.messages?.[0];
 
 
 
-        // Ignore status updates
-
-        if(
-            !phone ||
-            !message
-        ){
-
-            console.log(
-                "No user message received"
-            );
+    const phone =
+        messageObject?.from;
 
 
-            return NextResponse.json(
-                {
-                    received:true
-                },
-                {
-                    status:200
-                }
-            );
 
-        }
+    const message =
+        messageObject
+        ?.text
+        ?.body;
 
 
 
 
+    if(
+        !phone ||
+        !message
+    ){
 
-
-        console.log(
-            "USER:",
-            phone,
-            message
-        );
-
-
-
-
-
-
-
-
-        // ======================================
-        // Send to n8n AI Agent
-        // ======================================
-
-
-        const n8nResponse = await fetch(
-
-            "https://malikfaizan6653.app.n8n.cloud/webhook/wisemed-whatsapp",
-
+        return NextResponse.json(
             {
-
-                method:"POST",
-
-                headers:{
-
-                    "Content-Type":
-                    "application/json"
-
-                },
-
-
-                body:JSON.stringify({
-
-                    phone,
-
-                    message
-
-                })
-
+                received:true
             }
-
         );
 
-
-
-
-        console.log(
-            "n8n status:",
-            n8nResponse.status
-        );
+    }
 
 
 
 
-        const n8nData =
-            await n8nResponse
-            .json()
-            .catch(()=>null);
-
-
-
-        console.log(
-            "n8n response:",
-            n8nData
-        );
+    console.log(
+        "USER:",
+        phone,
+        message
+    );
 
 
 
@@ -290,55 +387,56 @@ export async function POST(
 
 
 
-        // ======================================
-        // Send AI reply back to WhatsApp
-        // ======================================
+    // ======================================
+    // Send to n8n AI
+    // ======================================
 
 
-        if(
-            n8nData?.reply
-        ){
+    const n8nResponse =
+    await fetch(
 
-            await sendWhatsAppMessage(
+        "https://malikfaizan6653.app.n8n.cloud/webhook/wisemed-whatsapp",
+
+        {
+
+            method:"POST",
+
+            headers:{
+
+                "Content-Type":
+                "application/json"
+
+            },
+
+
+            body:JSON.stringify({
 
                 phone,
 
-                n8nData.reply
+                message
 
-            );
-
-        }
-        else{
-
-
-            console.log(
-                "No reply returned from n8n"
-            );
-
+            })
 
         }
 
+    );
 
 
 
 
 
-        return NextResponse.json(
+    const n8nData =
+    await n8nResponse
+    .json()
+    .catch(()=>null);
 
-            {
 
-                received:true,
 
-                n8nStatus:
-                n8nResponse.status
 
-            },
-
-            {
-                status:200
-            }
-
-        );
+    console.log(
+        "n8n response:",
+        n8nData
+    );
 
 
 
@@ -346,35 +444,106 @@ export async function POST(
 
 
 
-    }
-    catch(error){
 
 
-        console.error(
-            "Webhook error:",
-            error
-        );
+    // ======================================
+    // Save CRM Lead Automatically
+    // ======================================
 
 
+    if(
+        n8nData?.lead
+    ){
 
-        return NextResponse.json(
-
-            {
-
-                received:false,
-
-                error:"Webhook failed"
-
-            },
-
-            {
-
-                status:500
-
-            }
-
+        await createCRMLead(
+            n8nData.lead,
+            phone
         );
 
     }
+
+
+
+
+
+
+
+
+    // ======================================
+    // Reply to WhatsApp
+    // ======================================
+
+
+    if(
+        n8nData?.output
+    ){
+
+        await sendWhatsAppMessage(
+
+            phone,
+
+            n8nData.output
+
+        );
+
+    }
+
+
+
+
+
+
+    return NextResponse.json(
+
+        {
+
+            received:true,
+
+            crmCreated:
+            !!n8nData?.lead
+
+        },
+
+        {
+            status:200
+        }
+
+    );
+
+
+
+
+
+}
+catch(error:any){
+
+
+    console.error(
+        "Webhook error:",
+        error
+    );
+
+
+
+    return NextResponse.json(
+
+        {
+
+            received:false,
+
+            error:
+            error.message
+
+        },
+
+        {
+            status:500
+        }
+
+    );
+
+
+}
+
 
 }
