@@ -143,7 +143,7 @@ export function processMessage(
 
 
 
-    const questions:any={
+    const questions:Partial<Record<keyof Lead,string>>={
 
         firstName:
         "May I know your first name?",
@@ -189,7 +189,7 @@ export function processMessage(
         completed:false,
 
         nextQuestion:
-        questions[missing[0]]
+        questions[missing[0] as keyof Lead] || ""
 
     };
 

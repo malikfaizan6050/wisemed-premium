@@ -119,11 +119,7 @@ router.replace("/dashboard");
 
 
 }
-catch(err:any){
-
-
-
-console.error(err);
+catch{
 
 
 

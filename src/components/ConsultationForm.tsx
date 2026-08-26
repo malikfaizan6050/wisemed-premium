@@ -19,17 +19,6 @@ useGoogleReCaptcha
 } from "react-google-recaptcha-v3";
 
 import {
-db
-} from "@/lib/firebase";
-
-import {
-addDoc,
-collection,
-serverTimestamp
-} from "firebase/firestore";
-
-
-import {
 calculateLeadScore,
 getLeadPriority
 } from "@/lib/leadScoring";
@@ -295,14 +284,10 @@ getLeadPriority(score);
 
 
 
-await addDoc(
-
-collection(
-db,
-"consultations"
-),
-
-{
+const response = await fetch("/api/consultation",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
 
 
 ...formData,
@@ -350,20 +335,12 @@ captchaToken,
 
 
 
-// DATES
+})
+});
 
-createdAt:
-serverTimestamp(),
-
-
-updatedAt:
-serverTimestamp()
-
-
+if(!response.ok){
+throw new Error("Consultation submission failed");
 }
-
-
-);
 
 
 
@@ -383,13 +360,7 @@ setSelectedChallenges([]);
 }
 
 
-catch(error){
-
-
-console.error(
-"Submission error:",
-error
-);
+catch{
 
 
 setError(

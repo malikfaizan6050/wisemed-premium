@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/apiAuth";
 import { db } from "@/lib/firebase-admin";
 
 
@@ -32,13 +33,20 @@ function splitName(fullName: string) {
 
 
 
-export async function GET() {
+export async function GET(request:Request) {
+  const authResult = await requirePermission(request,"system.migrate");
+  if(!authResult.ok){
+    return authResult.response;
+  }
+
 
 
   try {
 
 
-    const migratedLeads: any[] = [];
+    const migratedLeads: Array<
+      Record<string, unknown> & { originalId:string }
+    > = [];
 
 
 
@@ -58,7 +66,7 @@ export async function GET() {
     consultationsSnapshot.forEach((doc) => {
 
 
-      const data: any = doc.data();
+      const data = doc.data();
 
 
 
@@ -218,7 +226,7 @@ export async function GET() {
     leadsSnapshot.forEach((doc) => {
 
 
-      const data: any = doc.data();
+      const data = doc.data();
 
 
 
@@ -454,13 +462,10 @@ export async function GET() {
   }
 
 
-  catch(error:any) {
+  catch {
 
 
-    console.error(
-      "Migration error:",
-      error
-    );
+    console.error("Migration failed");
 
 
 
@@ -468,8 +473,7 @@ export async function GET() {
 
       success:false,
 
-      error:
-        error.message
+      error:"Migration failed"
 
     },
 

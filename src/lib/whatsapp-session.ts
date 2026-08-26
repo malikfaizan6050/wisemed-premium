@@ -16,7 +16,7 @@ export interface WhatsAppSession {
     phone:string;
 
 
-    data:any;
+    data:Record<string, unknown>;
 
 
     lastMessage?:string;
@@ -86,7 +86,7 @@ export async function getSession(
 
 export async function saveSession(
     phone:string,
-    data:any,
+    data:Record<string, unknown>,
     lastMessage?:string
 ){
 

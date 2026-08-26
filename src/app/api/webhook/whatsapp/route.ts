@@ -1,5 +1,38 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+interface IncomingLead {
+    firstName?:string;
+    lastName?:string;
+    email?:string;
+    phone?:string;
+    organization?:string;
+    specialty?:string;
+    npi?:string;
+    monthlyClaims?:number;
+    currentBillingMethod?:string;
+    ehrSystem?:string;
+    message?:string;
+    challenges?:string[];
+}
+
+function hasValidMetaSignature(payload:string,signature:string | null) {
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
+
+    if(!appSecret || !signature?.startsWith("sha256=")){
+        return false;
+    }
+
+    const expected = `sha256=${createHmac("sha256",appSecret)
+        .update(payload,"utf8")
+        .digest("hex")}`;
+    const suppliedBuffer = Buffer.from(signature,"utf8");
+    const expectedBuffer = Buffer.from(expected,"utf8");
+
+    return suppliedBuffer.length === expectedBuffer.length &&
+        timingSafeEqual(suppliedBuffer,expectedBuffer);
+}
 
 
 // ======================================
@@ -113,22 +146,13 @@ async function sendWhatsAppMessage(
         await response.json();
 
 
-        console.log(
-            "WhatsApp API:",
-            data
-        );
-
-
         return data;
 
 
     }
-    catch(error){
+    catch {
 
-        console.error(
-            "WhatsApp send error:",
-            error
-        );
+        console.error("WhatsApp send failed");
 
 
         return null;
@@ -150,7 +174,7 @@ async function sendWhatsAppMessage(
 // ======================================
 
 async function createCRMLead(
-    lead:any,
+    lead:IncomingLead,
     phone:string
 ){
 
@@ -288,18 +312,10 @@ async function createCRMLead(
 
 
 
-        console.log(
-            "CRM lead created successfully"
-        );
-
-
     }
-    catch(error){
+    catch {
 
-        console.error(
-            "CRM creation error:",
-            error
-        );
+        console.error("WhatsApp CRM lead creation failed");
 
     }
 
@@ -322,17 +338,19 @@ export async function POST(
 ){
 
 try {
+    const rawBody = await request.text();
 
+    if(!hasValidMetaSignature(
+        rawBody,
+        request.headers.get("x-hub-signature-256")
+    )){
+        return NextResponse.json(
+            { received:false,error:"Invalid webhook signature" },
+            { status:401 }
+        );
+    }
 
-    const body =
-    await request.json();
-
-
-
-    console.log(
-        "Incoming:",
-        JSON.stringify(body,null,2)
-    );
+    const body = JSON.parse(rawBody);
 
 
 
@@ -371,17 +389,6 @@ try {
         );
 
     }
-
-
-
-
-    console.log(
-        "USER:",
-        phone,
-        message
-    );
-
-
 
 
 
@@ -429,17 +436,6 @@ try {
     await n8nResponse
     .json()
     .catch(()=>null);
-
-
-
-
-    console.log(
-        "n8n response:",
-        n8nData
-    );
-
-
-
 
 
 
@@ -515,13 +511,10 @@ try {
 
 
 }
-catch(error:any){
+catch {
 
 
-    console.error(
-        "Webhook error:",
-        error
-    );
+    console.error("WhatsApp webhook processing failed");
 
 
 
@@ -531,8 +524,7 @@ catch(error:any){
 
             received:false,
 
-            error:
-            error.message
+            error:"Webhook failed"
 
         },
 

@@ -272,7 +272,7 @@ sm:grid-cols-2
 
 
 {
-benefits.map((item,index)=>{
+benefits.map((item)=>{
 
 
 const Icon=item.icon;

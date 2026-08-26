@@ -4,7 +4,6 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
-import Link from "next/link";
 
 const solutions = [
   "Medical Billing",

@@ -189,10 +189,10 @@ text-slate-600
 "
 >
 
-"WiseMedBilling transformed our revenue
+&ldquo;WiseMedBilling transformed our revenue
 cycle operations. Their expertise helped us
 reduce denials, improve collections, and
-gain better financial visibility."
+gain better financial visibility.&rdquo;
 
 </p>
 
@@ -350,7 +350,7 @@ space-y-5
 >
 
 {
-stats.map((item,index)=>(
+stats.map((item)=>(
 
 
 <motion.div

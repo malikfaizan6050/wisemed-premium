@@ -103,7 +103,7 @@ color:"red"
 
 
 
-const colorMap:any = {
+const colorMap:Record<string,string> = {
 
 
 blue:

@@ -28,6 +28,11 @@ const genAI = new GoogleGenAI({
 
 const CONFIDENCE_THRESHOLD = 0.75;
 
+interface KnowledgeMatch {
+  content:string;
+  similarity:number;
+}
+
 
 const leadKeywords = [
 
@@ -112,13 +117,14 @@ leadData.email &&
 leadData.name
 ){
 
-    await fetch(
+    const leadResponse = await fetch(
         `${process.env.NEXT_PUBLIC_APP_URL}/api/leads`,
         {
             method:"POST",
 
             headers:{
-                "Content-Type":"application/json"
+                "Content-Type":"application/json",
+                "X-CRM-API-Key":process.env.WISEMED_CRM_API_KEY ?? ""
             },
 
             body:JSON.stringify(
@@ -126,6 +132,10 @@ leadData.name
             )
         }
     );
+
+    if(!leadResponse.ok){
+      throw new Error("Lead creation failed");
+    }
 
 
     return NextResponse.json({
@@ -138,13 +148,6 @@ leadData.name
     });
 
 }
-
-    console.log(
-      "User question:",
-      question
-    );
-
-
 
     // ==================================
     // Lead Intent Detection
@@ -160,13 +163,6 @@ leadData.name
       leadKeywords.some(keyword =>
         lowerQuestion.includes(keyword)
       );
-
-
-
-    console.log(
-      "Lead detected:",
-      leadDetected
-    );
 
 
 
@@ -243,12 +239,6 @@ Our team will contact you shortly.
 
 
 
-    console.log(
-      "Embedding created:",
-      queryEmbedding.length
-    );
-
-
 
 
 
@@ -289,12 +279,6 @@ Our team will contact you shortly.
 
 
 
-    console.log(
-      "Documents found:",
-      data?.length
-    );
-
-
 
     if(!data || data.length===0){
 
@@ -327,12 +311,6 @@ Our team will contact you shortly.
 
 
 
-    console.log(
-      "Similarity:",
-      bestSimilarity
-    );
-
-
 
     if(bestSimilarity < CONFIDENCE_THRESHOLD){
 
@@ -362,9 +340,9 @@ Our team will contact you shortly.
 
 
     const context =
-      data
+      (data as KnowledgeMatch[])
       .map(
-        (item:any)=>
+        (item)=>
         item.content
       )
       .join("\n\n");
@@ -446,13 +424,10 @@ Rules:
 
   }
 
-  catch(error:any){
+  catch {
 
 
-    console.error(
-      "AI ERROR:",
-      error
-    );
+    console.error("AI request failed");
 
 
 
@@ -460,9 +435,7 @@ Rules:
 
       {
 
-        error:
-        error.message ||
-        "AI service failed"
+        error:"AI service failed"
 
       },
 

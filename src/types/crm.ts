@@ -143,6 +143,8 @@ export interface Lead {
 
     nextAction?: string;
 
+    dueDate?: unknown;
+
 
 
     // ==========================
@@ -156,7 +158,7 @@ export interface Lead {
     assignedBy?: string | null;
 
 
-    assignedAt?: any;
+    assignedAt?: unknown;
 
 
 
@@ -170,7 +172,7 @@ export interface Lead {
 
         action:string;
 
-        createdAt:any;
+        createdAt:unknown;
 
     }[];
 
@@ -194,8 +196,8 @@ export interface Lead {
     // System Dates
     // ==========================
 
-    createdAt:any;
+    createdAt:unknown;
 
-    updatedAt:any;
+    updatedAt:unknown;
 
 }

@@ -14,6 +14,8 @@ import {
   Lead
 } from "@/types/crm";
 
+import { isLeadOverdue, toLeadDate } from "@/lib/leadDates";
+
 
 
 interface Props {
@@ -222,6 +224,21 @@ const priority =
 lead.priority ?? "standard";
 
 
+const score =
+lead.opportunityScore ??
+lead.leadScore ??
+0;
+
+
+const claims =
+lead.monthlyClaims ??
+lead.claimsVolume;
+
+const overdue = isLeadOverdue(lead.dueDate,status);
+
+const dueDate = toLeadDate(lead.dueDate);
+
+
 
 return (
 
@@ -265,7 +282,10 @@ text-slate-900
 "
 >
 
-{lead.firstName} {lead.lastName}
+{
+`${lead.firstName} ${lead.lastName}`.trim() ||
+"Healthcare Provider"
+}
 
 </p>
 
@@ -278,7 +298,7 @@ text-slate-500
 "
 >
 
-Healthcare Provider
+{lead.assignedTo ? `Owner: ${lead.assignedTo}` : "Unassigned"}
 
 </p>
 
@@ -317,6 +337,12 @@ lead.organization ||
 }
 
 </span>
+
+{lead.nextAction &&
+<p className="mt-1 max-w-[150px] truncate text-xs text-slate-500">
+{lead.nextAction}
+</p>
+}
 
 
 </div>
@@ -365,7 +391,7 @@ px-3
 py-1
 text-xs
 font-semibold
-${stageStyles[status]}
+${stageStyles[status] || stageStyles.new_inquiry}
 `}
 
 >
@@ -378,6 +404,12 @@ status
 
 
 </span>
+
+{overdue &&
+<p className="mt-1 text-xs font-semibold text-red-600">
+Overdue{dueDate ? ` · ${dueDate.toLocaleDateString()}` : ""}
+</p>
+}
 
 
 </div>
@@ -415,7 +447,7 @@ text-blue-600
 >
 
 {
-lead.leadScore ?? 0
+score
 }
 
 
@@ -447,7 +479,7 @@ bg-blue-600
 
 style={{
 
-width:`${lead.leadScore ?? 0}%`
+width:`${score}%`
 
 }}
 
@@ -501,23 +533,9 @@ text-slate-600
 
 {
 
-lead.monthlyClaims
-
-?
-
-`${lead.monthlyClaims}/mo`
-
-:
-
-lead.claimsVolume
-
-?
-
-`${lead.claimsVolume}/mo`
-
-:
-
-"Not added"
+claims !== undefined && claims !== null
+? `${claims}/mo`
+: "Not added"
 
 }
 
@@ -550,7 +568,7 @@ px-3
 py-1
 text-xs
 font-semibold
-${priorityStyles[priority]}
+${priorityStyles[priority] || priorityStyles.standard}
 `
 
 }

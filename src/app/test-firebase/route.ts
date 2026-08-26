@@ -1,7 +1,13 @@
 import { db } from "@/lib/firebase-admin";
+import { requirePermission } from "@/lib/apiAuth";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request:Request) {
+  const authResult = await requirePermission(request,"system.diagnostics");
+  if(!authResult.ok){
+    return authResult.response;
+  }
+
   try {
     await db.collection("test").doc("connection").set({
       status: "Firebase connected",
@@ -13,11 +19,11 @@ export async function GET() {
       message: "Firebase Admin working",
     });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
-        error: String(error),
+        error: "Firebase test failed",
       },
       {
         status: 500,

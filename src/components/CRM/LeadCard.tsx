@@ -26,7 +26,7 @@ interface Props {
 
 
 
-const statusStyles:any = {
+const statusStyles:Record<string,string> = {
 
 
   new_inquiry:
@@ -69,7 +69,7 @@ const statusStyles:any = {
 
 
 
-const priorityStyles:any={
+const priorityStyles:Record<string,string>={
 
 
 critical:
