@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect,useState } from "react";
 import { Mail,MessageCircle,Pencil,Phone,X } from "lucide-react";
 import type { Lead } from "@/types/crm";
 import { isLeadOverdue,toDateInputValue } from "@/lib/leadDates";
@@ -8,6 +8,10 @@ import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import LeadDrawerDetails,{ LeadScoreCard } from "./LeadDrawerDetails";
 import LeadDrawerFollowUp,{ LeadNotes } from "./LeadDrawerFollowUp";
 import FeedbackMessage from "./FeedbackMessage";
+import UserSelect from "./UserSelect";
+import { useCRMUser } from "./CRMUserContext";
+import { getApiError } from "./managementUtils";
+import type { CRMUser } from "@/types/crm-auth";
 
 interface Props {
     lead:Lead | null;
@@ -35,12 +39,30 @@ const priorityOptions = [
 ] as const;
 
 export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
+    const { hasPermission } = useCRMUser();
+    const canAssign = hasPermission("leads.assign");
     const [notes,setNotes] = useState(lead?.notes ?? "");
     const [saving,setSaving] = useState(false);
-    const [assignedTo,setAssignedTo] = useState(lead?.assignedTo ?? "");
+    const [users,setUsers] = useState<CRMUser[]>([]);
+    const [loadingUsers,setLoadingUsers] = useState(canAssign);
+    const [selectedOwnerId,setSelectedOwnerId] = useState(lead?.ownerId ?? "");
+    const [assignedOwner,setAssignedOwner] = useState(lead?.ownerSnapshot ?? null);
     const [nextAction,setNextAction] = useState(lead?.nextAction ?? "");
     const [dueDate,setDueDate] = useState(toDateInputValue(lead?.dueDate));
     const [feedback,setFeedback] = useState<{ message:string; tone:"error" | "success" }>({ message:"",tone:"error" });
+
+    useEffect(()=>{
+        if(!canAssign) return;
+        let active = true;
+        void authenticatedFetch("/api/users?active=true&limit=100").then(async(response)=>{
+            const result:unknown = await response.json().catch(()=>null);
+            if(!response.ok) throw new Error(getApiError(result,"Unable to load salespeople"));
+            if(active) setUsers(result && typeof result === "object" && "users" in result && Array.isArray(result.users) ? result.users as CRMUser[] : []);
+        }).catch((error:unknown)=>{
+            if(active) setFeedback({ message:error instanceof Error ? error.message : "Unable to load salespeople",tone:"error" });
+        }).finally(()=>{ if(active) setLoadingUsers(false); });
+        return ()=>{ active = false; };
+    },[canAssign]);
 
     if(!lead) return null;
 
@@ -78,6 +100,25 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
     const fullName = `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Healthcare Provider";
     const whatsappPhone = lead.phone.replace(/\D/g,"");
 
+    const assignOwner = async() => {
+        if(!selectedOwnerId){ setFeedback({ message:"Select a salesperson first",tone:"error" });return; }
+        setSaving(true);
+        setFeedback({ message:"",tone:"error" });
+        try {
+            const response = await authenticatedFetch(`/api/leads/${lead.id}/assign`,{
+                method:"POST",headers:{ "Content-Type":"application/json" },body:JSON.stringify({ ownerId:selectedOwnerId })
+            });
+            const result:unknown = await response.json().catch(()=>null);
+            if(!response.ok) throw new Error(getApiError(result,"Unable to assign salesperson"));
+            const selectedUser = users.find((user)=>user.uid === selectedOwnerId);
+            if(selectedUser) setAssignedOwner({ displayName:selectedUser.displayName,email:selectedUser.email });
+            setFeedback({ message:"Salesperson assigned successfully",tone:"success" });
+            onUpdated?.();
+        }
+        catch(error:unknown){ setFeedback({ message:error instanceof Error ? error.message : "Unable to assign salesperson",tone:"error" }); }
+        finally { setSaving(false); }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
             <div className="absolute inset-0 bg-black/40" onClick={onClose}/>
@@ -98,12 +139,18 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
                 <SelectField label="RCM Pipeline" value={lead.status} options={pipelineOptions} onChange={(value)=>updateFields({ status:value })}/>
                 <SelectField label="Opportunity Priority" value={lead.priority} options={priorityOptions} onChange={(value)=>updateFields({ priority:value })}/>
 
+                <div className="mt-6 rounded-3xl border bg-slate-50 p-5">
+                    <h3 className="font-bold text-slate-900">Lead Ownership</h3>
+                    <p className="mt-1 text-sm text-slate-600">{assignedOwner ? `${assignedOwner.displayName} · ${assignedOwner.email}` : "No salesperson assigned"}</p>
+                    {canAssign && <div className="mt-4"><label className="text-xs font-semibold uppercase text-slate-500">Assign Salesperson</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><div className="flex-1"><UserSelect users={users} value={selectedOwnerId} onChange={setSelectedOwnerId} disabled={loadingUsers || saving} placeholder={loadingUsers ? "Loading salespeople..." : "Select salesperson"}/></div><button type="button" onClick={assignOwner} disabled={loadingUsers || saving || !selectedOwnerId} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Assigning..." : "Assign"}</button></div></div>}
+                </div>
+
                 <LeadDrawerFollowUp
-                    assignedTo={assignedTo} nextAction={nextAction} dueDate={dueDate}
+                    nextAction={nextAction} dueDate={dueDate}
                     overdue={isLeadOverdue(lead.dueDate,lead.status)} saving={saving}
-                    onAssignedToChange={setAssignedTo} onNextActionChange={setNextAction}
+                    onNextActionChange={setNextAction}
                     onDueDateChange={setDueDate}
-                    onSaveFollowUp={()=>updateFields({ assignedTo,nextAction,dueDate })}
+                    onSaveFollowUp={()=>updateFields({ nextAction,dueDate })}
                 />
                 <LeadScoreCard lead={lead}/>
                 <LeadDrawerDetails lead={lead}/>

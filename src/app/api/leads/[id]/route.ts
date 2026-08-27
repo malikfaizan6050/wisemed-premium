@@ -7,7 +7,10 @@ import {
     normalizePhone
 } from "@/lib/leadDuplicateDetection";
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission } from "@/lib/apiAuth";
+import { getCurrentCRMUser } from "@/lib/apiAuth";
+import { canAccessLead } from "@/lib/leadOwnership";
+import { recordActivity } from "@/services/activityService";
+import { createNotification } from "@/services/notificationService";
 
 const textFields = new Set([
     "firstName",
@@ -26,7 +29,6 @@ const textFields = new Set([
     "status",
     "priority",
     "notes",
-    "assignedTo",
     "nextAction"
 ]);
 
@@ -57,9 +59,12 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id:string }> }
 ) {
-    const authResult = await requirePermission(request,"leads.update.all");
-    if(!authResult.ok){
-        return authResult.response;
+    const currentUser = await getCurrentCRMUser(request);
+    if(!currentUser){
+        return NextResponse.json(
+            { error:"Active CRM user profile required" },
+            { status:401 }
+        );
     }
 
     try {
@@ -118,11 +123,6 @@ export async function PATCH(
             updates.currentBillingMethod = updates.billingSetup;
         }
 
-        if("assignedTo" in updates){
-            updates.assignedTo = updates.assignedTo || null;
-            updates.assignedAt = new Date();
-        }
-
         const reference = db.collection("crm_leads").doc(id);
         const snapshot = await reference.get();
 
@@ -134,6 +134,12 @@ export async function PATCH(
         }
 
         const currentLead = snapshot.data() ?? {};
+        if(!canAccessLead(currentUser,currentLead)){
+            return NextResponse.json(
+                { error:"You do not have permission to update this lead" },
+                { status:403 }
+            );
+        }
         const mergedLead = {
             ...currentLead,
             ...updates
@@ -182,6 +188,33 @@ export async function PATCH(
 
         updates.updatedAt = new Date();
         await reference.update(updates);
+
+        const changedFields = entries.map(([field])=>field);
+        const activities = [recordActivity({
+            actorId:currentUser.uid,
+            actorType:currentUser.authType === "service" ? "integration" : "user",
+            action:"lead.updated",
+            entityType:"lead",
+            entityId:id,
+            metadata:{ changedFields }
+        })];
+        if("status" in updates && updates.status !== currentLead.status){
+            activities.push(recordActivity({
+                actorId:currentUser.uid,actorType:"user",action:"lead.status_changed",entityType:"lead",entityId:id,
+                metadata:{ previousStatus:currentLead.status ?? null,newStatus:updates.status }
+            }));
+            if(typeof currentLead.ownerId === "string") activities.push(createNotification({
+                userId:currentLead.ownerId,type:"lead.status_changed",title:"Lead status changed",
+                message:`Lead status changed to ${String(updates.status).replaceAll("_"," ")}.`,entityType:"lead",entityId:id
+            }).then(()=>""));
+        }
+        if("notes" in updates && updates.notes !== currentLead.notes){
+            activities.push(recordActivity({
+                actorId:currentUser.uid,actorType:"user",action:"lead.notes_changed",entityType:"lead",entityId:id,
+                metadata:{ changed:true }
+            }));
+        }
+        await Promise.all(activities).catch(()=>undefined);
 
         return NextResponse.json({ success:true });
     }

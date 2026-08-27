@@ -2,11 +2,10 @@
 
 import { useMemo,useState } from "react";
 import { signOut } from "firebase/auth";
-import { BriefcaseBusiness,Clock,Flame,Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { toLeadDate } from "@/lib/leadDates";
-import { useCrmLeads } from "@/hooks/useCrmLeads";
+import { useDashboardLeads } from "@/components/CRM/useDashboardLeads";
 import type { Lead } from "@/types/crm";
 import CreateLeadModal from "@/components/CRM/CreateLeadModal";
 import DashboardFilters,{ type DashboardFilterValues } from "@/components/CRM/DashboardFilters";
@@ -15,7 +14,8 @@ import FeedbackMessage from "@/components/CRM/FeedbackMessage";
 import LeadDrawer from "@/components/CRM/LeadDrawer";
 import LeadTable from "@/components/CRM/LeadTable";
 import PipelineOverview from "@/components/CRM/PipelineOverview";
-import StatsCard from "@/components/CRM/StatsCard";
+import AnalyticsDashboard from "@/components/CRM/AnalyticsDashboard";
+import AsyncError from "@/components/CRM/AsyncError";
 
 const initialFilters:DashboardFilterValues = {
     search:"",pipeline:"all",assignee:"all",source:"all",specialty:"all",
@@ -24,7 +24,7 @@ const initialFilters:DashboardFilterValues = {
 
 export default function Dashboard() {
     const router = useRouter();
-    const { leads,loading,checkingAuth,error } = useCrmLeads();
+    const { leads,loading,checkingAuth,error,refresh } = useDashboardLeads();
     const [filters,setFilters] = useState(initialFilters);
     const [selectedLead,setSelectedLead] = useState<Lead | null>(null);
     const [modalOpen,setModalOpen] = useState(false);
@@ -36,7 +36,7 @@ export default function Dashboard() {
         : null;
 
     const choices = useMemo(()=>({
-        assignees:unique(leads.map((lead)=>lead.assignedTo).filter((value):value is string=>Boolean(value))),
+        assignees:unique(leads.map((lead)=>lead.ownerSnapshot?.displayName).filter((value):value is string=>Boolean(value))),
         sources:unique(leads.map((lead)=>lead.source).filter((value):value is string=>Boolean(value))),
         specialties:unique(leads.map((lead)=>lead.specialty).filter(Boolean))
     }),[leads]);
@@ -51,28 +51,23 @@ export default function Dashboard() {
 
     const closeModal = () => { setModalOpen(false);setEditingLead(null); };
 
-    return <main className="min-h-screen bg-slate-50 p-8">
+    return <main className="min-h-screen bg-slate-50 p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
             <DashboardHeader
                 onCreate={()=>{ setEditingLead(null);setModalOpen(true);setFeedback(""); }}
                 onLogout={async()=>{ await signOut(auth);router.replace("/login"); }}
             />
 
-            <div className="mt-6"><FeedbackMessage message={error || feedback} tone={error ? "error" : "success"}/></div>
+            <div className="mt-6">{error ? <AsyncError message={error} onRetry={()=>void refresh()}/> : <FeedbackMessage message={feedback} tone="success"/>}</div>
 
-            <div className="mt-10 grid gap-6 lg:grid-cols-4">
-                <StatsCard title="Total Providers" value={leads.length} icon={Users} description="Healthcare inquiries"/>
-                <StatsCard title="New Inquiries" value={leads.filter((lead)=>lead.status === "new_inquiry").length} icon={Clock} description="Needs qualification"/>
-                <StatsCard title="Active Clients" value={leads.filter((lead)=>lead.status === "active_client").length} icon={BriefcaseBusiness} description="Managed accounts"/>
-                <StatsCard title="Priority Opportunities" value={leads.filter((lead)=>lead.priority === "critical" || lead.priority === "high").length} icon={Flame} description="Needs attention"/>
-            </div>
+            <AnalyticsDashboard/>
 
             <DashboardFilters values={filters} {...choices} onChange={(field,value)=>setFilters((current)=>({ ...current,[field]:value }))}/>
             <PipelineOverview leads={filteredLeads}/>
             {loading ? <p className="mt-6">Loading providers...</p> : <LeadTable leads={filteredLeads} onSelect={setSelectedLead}/>}
         </div>
 
-        <LeadDrawer key={displayedLead?.id ?? "closed"} lead={displayedLead} onClose={()=>setSelectedLead(null)} onEdit={(lead)=>{ setEditingLead(lead);setModalOpen(true); }}/>
+        <LeadDrawer key={displayedLead?.id ?? "closed"} lead={displayedLead} onClose={()=>setSelectedLead(null)} onUpdated={()=>void refresh()} onEdit={(lead)=>{ setEditingLead(lead);setModalOpen(true); }}/>
         {modalOpen && (
             <CreateLeadModal
                 key={editingLead?.id ?? "create"}
@@ -82,6 +77,7 @@ export default function Dashboard() {
                 onSaved={()=>{
                     setFeedback(`Lead ${editingLead ? "updated" : "created"} successfully`);
                     closeModal();
+                    void refresh();
                 }}
             />
         )}
@@ -98,7 +94,7 @@ function matchesFilters(lead:Lead,filters:DashboardFilterValues) {
     const createdAt = toLeadDate(lead.createdAt);
     return searchable.includes(filters.search.toLowerCase()) &&
         (filters.pipeline === "all" || lead.status === filters.pipeline) &&
-        (filters.assignee === "all" || (filters.assignee === "unassigned" ? !lead.assignedTo : lead.assignedTo === filters.assignee)) &&
+        (filters.assignee === "all" || (filters.assignee === "unassigned" ? !lead.ownerId : lead.ownerSnapshot?.displayName === filters.assignee)) &&
         (filters.source === "all" || lead.source === filters.source) &&
         (filters.specialty === "all" || lead.specialty === filters.specialty) &&
         (filters.priority === "all" || lead.priority === filters.priority) &&

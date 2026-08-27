@@ -12,11 +12,7 @@ function isDateValue(value:unknown):value is CRMUser["createdAt"] {
     );
 }
 
-export async function getCRMUserById(uid:string):Promise<CRMUser | null> {
-    const snapshot = await db.collection(CRM_USERS_COLLECTION).doc(uid).get();
-    if(!snapshot.exists) return null;
-
-    const data = snapshot.data();
+export function mapCRMUser(uid:string,data:FirebaseFirestore.DocumentData | undefined):CRMUser | null {
     if(!data || !isDateValue(data.createdAt) || !isDateValue(data.updatedAt)) return null;
     if(!["active","suspended","invited"].includes(data.status)) return null;
 
@@ -35,4 +31,9 @@ export async function getCRMUserById(uid:string):Promise<CRMUser | null> {
         updatedAt:data.updatedAt,
         lastLoginAt:isDateValue(data.lastLoginAt) ? data.lastLoginAt : null
     };
+}
+
+export async function getCRMUserById(uid:string):Promise<CRMUser | null> {
+    const snapshot = await db.collection(CRM_USERS_COLLECTION).doc(uid).get();
+    return snapshot.exists ? mapCRMUser(snapshot.id,snapshot.data()) : null;
 }

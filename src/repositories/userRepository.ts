@@ -2,7 +2,7 @@ import "server-only";
 
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "@/lib/firebase-admin";
-import { getCRMUserById } from "@/lib/crmUserRepository";
+import { getCRMUserById,mapCRMUser } from "@/lib/crmUserRepository";
 import type { CRMUser,CRMUserStatus } from "@/types/crm-auth";
 
 export interface CreateUserProfileInput {
@@ -31,11 +31,23 @@ interface AuditInput {
     metadata:Record<string,unknown>;
 }
 
-export async function listUsers(limit=100):Promise<CRMUser[]> {
-    const safeLimit = Math.min(Math.max(limit,1),100);
-    const snapshot = await db.collection("users").orderBy("displayName").limit(safeLimit).get();
-    const users = await Promise.all(snapshot.docs.map((document)=>getCRMUserById(document.id)));
-    return users.filter((user):user is CRMUser=>user !== null);
+export interface ListUsersOptions {
+    limit?:number;
+    status?:CRMUserStatus;
+    roleId?:string;
+}
+
+export async function listUsers(options:ListUsersOptions = {}):Promise<CRMUser[]> {
+    const safeLimit = Math.min(Math.max(options.limit ?? 50,1),100);
+    let usersQuery:FirebaseFirestore.Query = db.collection("users");
+    if(options.status) usersQuery = usersQuery.where("status","==",options.status);
+    if(options.roleId) usersQuery = usersQuery.where("roleId","==",options.roleId);
+
+    const snapshot = await usersQuery.limit(safeLimit).get();
+    return snapshot.docs
+        .map((document)=>mapCRMUser(document.id,document.data()))
+        .filter((user):user is CRMUser=>user !== null)
+        .sort((first,second)=>first.displayName.localeCompare(second.displayName));
 }
 
 export { getCRMUserById as getUserById };

@@ -1,12 +1,10 @@
 import { AlertTriangle,CalendarDays,FileText,Save } from "lucide-react";
 
 interface Props {
-    assignedTo:string;
     nextAction:string;
     dueDate:string;
     overdue:boolean;
     saving:boolean;
-    onAssignedToChange:(value:string)=>void;
     onNextActionChange:(value:string)=>void;
     onDueDateChange:(value:string)=>void;
     onSaveFollowUp:()=>void;
@@ -21,7 +19,6 @@ export default function LeadDrawerFollowUp(props:Props) {
                     {props.overdue && <span className="flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700"><AlertTriangle size={13}/>Overdue</span>}
                 </div>
                 <div className="mt-4 grid gap-4">
-                    <Field label="Lead Owner" value={props.assignedTo} placeholder="Unassigned" onChange={props.onAssignedToChange}/>
                     <Field label="Next Action" value={props.nextAction} placeholder="Schedule discovery call" onChange={props.onNextActionChange}/>
                     <label className="text-xs font-semibold uppercase text-slate-500">Due Date<div className="mt-2 flex items-center gap-2 rounded-xl border bg-white px-4"><CalendarDays size={17} className="text-slate-500"/><input type="date" value={props.dueDate} onChange={(event)=>props.onDueDateChange(event.target.value)} className="w-full py-3 text-sm font-normal normal-case text-slate-800 outline-none"/></div></label>
                 </div>

@@ -8,9 +8,11 @@ import {
     getUserById,
     listUsers,
     updateUserProfile,
+    type ListUsersOptions,
     type UpdateUserProfileInput
 } from "@/repositories/userRepository";
 import type { CRMUserStatus,CurrentCRMUser } from "@/types/crm-auth";
+import { createNotification } from "@/services/notificationService";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const statuses = new Set<CRMUserStatus>(["active","suspended","invited"]);
@@ -72,8 +74,14 @@ async function ensureEmailAvailable(email:string,excludingUid?:string) {
     }
 }
 
-export async function getUsers(limit?:number) {
-    return listUsers(limit);
+export async function getUsers(options:ListUsersOptions = {}) {
+    if(options.status && !statuses.has(options.status)){
+        throw new UserServiceError("Invalid user status filter",400,"invalid_status");
+    }
+    if(options.roleId !== undefined && !options.roleId.trim()){
+        throw new UserServiceError("Invalid role filter",400,"invalid_role_filter");
+    }
+    return listUsers({ ...options,roleId:options.roleId?.trim() });
 }
 
 export async function getUser(uid:string) {
@@ -120,6 +128,10 @@ export async function createUser(input:CreateUserInput,actor:CurrentCRMUser) {
     }
 
     const passwordResetLink = password ? null : await adminAuth.generatePasswordResetLink(email);
+    await createNotification({
+        userId:firebaseUser.uid,type:"user.created",title:"CRM account created",
+        message:"Your CRM employee profile is ready.",entityType:"user",entityId:firebaseUser.uid
+    }).catch(()=>undefined);
     return { user:await getUser(firebaseUser.uid),passwordResetLink };
 }
 
@@ -168,7 +180,7 @@ export async function updateUser(uid:string,input:UpdateUserInput,actor:CurrentC
         if(updates.roleId) await adminAuth.setCustomUserClaims(uid,{ ...previousClaims,roleId:updates.roleId });
         await updateUserProfile(uid,updates,{
             actorId:actor.uid,
-            action:"user.updated",
+            action:updates.roleId ? "role.changed" : "user.updated",
             entityId:uid,
             metadata:{ changedFields,previousRoleId:current.roleId,newRoleId:updates.roleId ?? current.roleId }
         });

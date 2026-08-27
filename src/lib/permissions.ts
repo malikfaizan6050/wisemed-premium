@@ -5,6 +5,7 @@ export const CRM_PERMISSIONS = [
     "leads.update.all",
     "leads.update.owned",
     "leads.assign",
+    "users.assignable.read",
     "users.read",
     "users.manage",
     "roles.read",

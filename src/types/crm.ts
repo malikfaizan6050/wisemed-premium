@@ -153,9 +153,18 @@ export interface Lead {
 
     assignedTo?: string | null;
 
+    ownerId?: string | null;
+
+    ownerSnapshot?: {
+        displayName:string;
+        email:string;
+    } | null;
+
 
 
     assignedBy?: string | null;
+
+    assignedById?: string | null;
 
 
     assignedAt?: unknown;

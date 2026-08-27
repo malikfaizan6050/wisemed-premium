@@ -44,10 +44,22 @@ export interface ActivityEvent {
     action:string;
     actorType:ActivityActorType;
     actorId:string;
-    entityType:"lead" | "user" | "role";
+    entityType:string;
     entityId:string;
     metadata:Record<string,unknown>;
     createdAt:CRMDateValue;
+}
+
+export interface EmployeePerformance {
+    totalLeads:number;
+    assignedLeads:number;
+    completedLeads:number;
+    pendingLeads:number;
+    recentActivityCount:number;
+    conversionRate:number;
+    recentActivities:ActivityEvent[];
+    employee:Pick<CRMUser,"uid"|"email"|"displayName"|"jobTitle"|"roleId"|"status">;
+    role:Role | null;
 }
 
 export interface LeadOwnership {

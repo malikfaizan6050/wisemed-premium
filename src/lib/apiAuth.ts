@@ -84,7 +84,14 @@ export async function getCurrentCRMUser(request:Request):Promise<CurrentCRMUser 
 }
 
 export function hasPermission(user:CurrentCRMUser,permission:Permission) {
-    return user.status === "active" && user.permissions.includes(permission);
+    if(user.status !== "active") return false;
+    if(user.permissions.includes(permission)) return true;
+
+    if(permission === "roles.read") return user.permissions.includes("roles.manage");
+    if(permission === "users.read") return user.permissions.includes("users.manage");
+    if(permission === "users.assignable.read") return user.permissions.includes("leads.assign");
+
+    return false;
 }
 
 export async function requirePermission(
@@ -97,7 +104,7 @@ export async function requirePermission(
         return {
             ok:false,
             response:NextResponse.json(
-                { error:"Active CRM user profile required" },
+                { error:"Active CRM user profile required",code:"unauthenticated" },
                 { status:401 }
             )
         };
@@ -107,7 +114,7 @@ export async function requirePermission(
         return {
             ok:false,
             response:NextResponse.json(
-                { error:"Insufficient permissions" },
+                { error:"Insufficient permissions",code:"forbidden" },
                 { status:403 }
             )
         };

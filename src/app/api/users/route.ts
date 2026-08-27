@@ -1,15 +1,44 @@
-import { requirePermission } from "@/lib/apiAuth";
+import { getCurrentCRMUser,hasPermission,requirePermission } from "@/lib/apiAuth";
 import { readJsonObject,userApiError } from "@/lib/userApiResponse";
 import { createUser,getUsers,type CreateUserInput } from "@/services/userService";
 import { NextResponse } from "next/server";
+import type { CRMUserStatus } from "@/types/crm-auth";
+import { getRoleById } from "@/repositories/roleRepository";
 
 export async function GET(request:Request) {
-    const authorization = await requirePermission(request,"users.read");
-    if(!authorization.ok) return authorization.response;
+    const user = await getCurrentCRMUser(request);
+    if(!user) return NextResponse.json({ error:"Active CRM user profile required" },{ status:401 });
+
+    const searchParams = new URL(request.url).searchParams;
+    const activeOnly = searchParams.get("active") === "true";
+    const canReadUsers = hasPermission(user,"users.read");
+    const canReadAssignable = activeOnly && hasPermission(user,"users.assignable.read");
+    if(!canReadUsers && !canReadAssignable){
+        return NextResponse.json({ error:"Insufficient permissions" },{ status:403 });
+    }
 
     try {
-        const requestedLimit = Number(new URL(request.url).searchParams.get("limit") ?? 100);
-        const users = await getUsers(Number.isFinite(requestedLimit) ? requestedLimit : 100);
+        const requestedLimit = Number(searchParams.get("limit") ?? 50);
+        const status = activeOnly ? "active" : searchParams.get("status") ?? undefined;
+        const users = await getUsers({
+            limit:Number.isFinite(requestedLimit) ? requestedLimit : 50,
+            status:status as CRMUserStatus | undefined,
+            roleId:searchParams.get("roleId") ?? undefined
+        });
+
+        if(!canReadUsers){
+            const roleEntries = await Promise.all(Array.from(new Set(users.map((entry)=>entry.roleId))).map(async(roleId)=>[roleId,await getRoleById(roleId)] as const));
+            const roles = new Map(roleEntries);
+            const assignableUsers = users.flatMap((entry)=>{
+                const role = roles.get(entry.roleId);
+                const isAssignable = role?.status === "active" && role.permissions.some((permission)=>[
+                    "leads.read.all","leads.read.owned","leads.update.all","leads.update.owned"
+                ].includes(permission));
+                return isAssignable ? [{ uid:entry.uid,displayName:entry.displayName,email:entry.email,role:{ id:role.id,name:role.name } }] : [];
+            });
+            return NextResponse.json({ users:assignableUsers });
+        }
+
         return NextResponse.json({ users });
     }
     catch(error){

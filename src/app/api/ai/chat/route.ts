@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
 import { extractLead } from "@/lib/leadExtractor";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 
 // ===============================
@@ -82,6 +83,9 @@ const leadKeywords = [
 
 export async function POST(req: NextRequest) {
 
+  const limited = enforceRateLimit(req,"ai.chat",20);
+  if(limited) return limited;
+
 
   try {
 
@@ -93,11 +97,11 @@ export async function POST(req: NextRequest) {
 
 
 
-    if (!question) {
+    if (typeof question !== "string" || !question.trim() || question.length > 4000) {
 
       return NextResponse.json(
         {
-          error:"Message is required"
+          error:"Message must contain between 1 and 4000 characters"
         },
         {
           status:400

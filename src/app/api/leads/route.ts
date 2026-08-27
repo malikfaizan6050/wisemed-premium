@@ -7,8 +7,26 @@ import {
     normalizePhone
 } from "@/lib/leadDuplicateDetection";
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission } from "@/lib/apiAuth";
+import { getCurrentCRMUser,hasPermission,requirePermission } from "@/lib/apiAuth";
 import { getLeadContactError } from "@/lib/leadValidation";
+import { recordActivity } from "@/services/activityService";
+import { enforceRateLimit } from "@/lib/rateLimit";
+import { listLeadsForUser } from "@/repositories/leadRepository";
+
+export async function GET(request:NextRequest) {
+    const limited=enforceRateLimit(request,"lead.read",120);
+    if(limited) return limited;
+    const user=await getCurrentCRMUser(request);
+    if(!user) return NextResponse.json({ error:"Active CRM user profile required",code:"unauthenticated" },{ status:401 });
+    const readAll=hasPermission(user,"leads.read.all");
+    if(!readAll && !hasPermission(user,"leads.read.owned")) return NextResponse.json({ error:"Insufficient permissions",code:"forbidden" },{ status:403 });
+    try{
+        const requested=Number(request.nextUrl.searchParams.get("limit")??500);
+        const leads=await listLeadsForUser(readAll?undefined:user.uid,Number.isFinite(requested)?requested:500);
+        return NextResponse.json({ leads });
+    }
+    catch{ return NextResponse.json({ error:"Unable to load leads",code:"lead_read_failed" },{ status:500 }); }
+}
 
 type LeadInput = Record<string, unknown>;
 
@@ -50,6 +68,8 @@ function stringList(data: LeadInput, ...keys:string[]) {
 }
 
 export async function POST(request: NextRequest) {
+    const limited = enforceRateLimit(request,"lead.create",20);
+    if(limited) return limited;
     const authResult = await requirePermission(request,"leads.create");
     if(!authResult.ok){
         return authResult.response;
@@ -179,11 +199,15 @@ export async function POST(request: NextRequest) {
             source:textValue(data,"source") || "whatsapp_ai",
             status:textValue(data,"status") || "new_inquiry",
             assignedTo:null,
+            ownerId:null,
+            ownerSnapshot:null,
+            assignedById:null,
             notes:textValue(data,"notes"),
             nextAction:
                 textValue(data,"nextAction","next_action") ||
                 "Review provider inquiry",
             dueDate:null,
+            assignedAt:null,
             activity:[],
             createdAt:new Date(),
             updatedAt:new Date()
@@ -230,6 +254,15 @@ export async function POST(request: NextRequest) {
         const document = await db
             .collection("crm_leads")
             .add(storedLead);
+
+        await recordActivity({
+            actorId:authResult.user.uid,
+            actorType:authResult.user.authType === "service" ? "integration" : "user",
+            action:"lead.created",
+            entityType:"lead",
+            entityId:document.id,
+            metadata:{ source:storedLead.source }
+        }).catch(()=>undefined);
 
         return NextResponse.json({
             success:true,

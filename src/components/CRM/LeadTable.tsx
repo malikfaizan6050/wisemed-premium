@@ -298,7 +298,7 @@ text-slate-500
 "
 >
 
-{lead.assignedTo ? `Owner: ${lead.assignedTo}` : "Unassigned"}
+{lead.ownerSnapshot?.displayName ? `Owner: ${lead.ownerSnapshot.displayName}` : "Unassigned"}
 
 </p>
 

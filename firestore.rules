@@ -8,13 +8,27 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "active";
     }
 
+    function currentCrmUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function currentRole() {
+      return get(/databases/$(database)/documents/roles/$(currentCrmUser().roleId)).data;
+    }
+
+    function hasPermission(permission) {
+      return isActiveCrmUser() && currentRole().status == "active" &&
+        permission in currentRole().permissions;
+    }
+
     match /crm_leads/{leadId} {
-      allow read: if isActiveCrmUser();
+      allow read: if hasPermission("leads.read.all") ||
+        (hasPermission("leads.read.owned") && resource.data.ownerId == request.auth.uid);
       allow write: if false;
     }
 
     match /consultations/{consultationId} {
-      allow read: if isActiveCrmUser();
+      allow read: if false;
       allow write: if false;
     }
 
@@ -24,7 +38,10 @@ service cloud.firestore {
     }
 
     match /roles/{roleId} {
-      allow read: if isActiveCrmUser();
+      allow read: if isActiveCrmUser() && (
+        roleId == currentCrmUser().roleId ||
+        hasPermission("roles.read") || hasPermission("roles.manage")
+      );
       allow write: if false;
     }
 
