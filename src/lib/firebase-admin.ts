@@ -11,6 +11,22 @@ function getAdminApp() {
     const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID?.trim();
     const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim();
     const rawKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.trim();
+    // Temporary diagnostics: never log credential values or key substrings.
+    if (!getApps().some(app => app.name === "[DEFAULT]")) {
+        console.info("[Firebase Admin] Configuration diagnostics", {
+            FIREBASE_ADMIN_PROJECT_ID_exists: Boolean(projectId),
+            FIREBASE_ADMIN_CLIENT_EMAIL_exists: Boolean(clientEmail),
+            FIREBASE_ADMIN_PRIVATE_KEY_exists: Boolean(rawKey),
+            FIREBASE_ADMIN_PRIVATE_KEY_length: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.length ?? 0,
+            privateKeyHasPemHeader: rawKey?.includes("-----BEGIN PRIVATE KEY-----") ?? false,
+            privateKeyHasPemFooter: rawKey?.includes("-----END PRIVATE KEY-----") ?? false,
+            privateKeyHasEscapedNewlines: rawKey?.includes("\\n") ?? false,
+            privateKeyHasRealNewlines: rawKey?.includes("\n") ?? false,
+            clientProjectIdExists: Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim()),
+            projectIdsMatch: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+                ? projectId === process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID.trim() : null
+        });
+    }
     if (!projectId || !clientEmail || !rawKey ||
         (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID && projectId !== process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID.trim())) {
         throw new FirebaseAdminConfigurationError();
@@ -21,7 +37,20 @@ function getAdminApp() {
         .replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n");
     try {
         return initializeApp({ projectId, credential: cert({ projectId, clientEmail, privateKey }) });
-    } catch {
+    } catch (error) {
+        // Only known SDK messages can be emitted verbatim. Unknown exceptions
+        // may contain credential input, so do not log the object, stack or cause.
+        const safeMessages = [
+            "Failed to parse private key.",
+            'Service account object must contain a string "project_id" property.',
+            'Service account object must contain a string "private_key" property.',
+            'Service account object must contain a string "client_email" property.'
+        ];
+        const message = error instanceof Error ? error.message : "";
+        console.error("[Firebase Admin] Initialization failed", {
+            message: safeMessages.includes(message)
+                ? message : "Unrecognized initialization error; message withheld to protect credentials."
+        });
         throw new FirebaseAdminConfigurationError();
     }
 }
