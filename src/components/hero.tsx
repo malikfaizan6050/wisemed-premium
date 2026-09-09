@@ -183,7 +183,8 @@ Free RCM Audit
 
 
 
-<button
+<Link
+href="/solutions"
 className="
 rounded-full
 border
@@ -201,7 +202,7 @@ hover:bg-white
 
 Explore Platform
 
-</button>
+</Link>
 
 
 </div>

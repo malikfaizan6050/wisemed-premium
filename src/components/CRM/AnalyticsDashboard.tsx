@@ -41,10 +41,11 @@ export default function AnalyticsDashboard() {
 
     return <section className="mt-10" aria-label="CRM analytics">
         {analytics.scope === "own" && <p className="mb-4 text-sm font-medium text-blue-700">Showing your performance data.</p>}
+        {analytics.scope === "team" && <p className="mb-4 text-sm font-medium text-blue-700">Showing your team&apos;s performance data.</p>}
         <div className="grid gap-6 lg:grid-cols-4">
             <StatsCard title="Total Leads" value={analytics.totalLeads} icon={UsersRound} description={`${analytics.unassignedLeads} unassigned`}/>
             <StatsCard title="Assigned Leads" value={analytics.assignedLeads} icon={BriefcaseBusiness} description="Current workload"/>
-            <StatsCard title="Active Employees" value={analytics.activeEmployees} icon={CheckCircle2} description={analytics.scope === "own" ? "Your account" : "Available CRM users"}/>
+            <StatsCard title="Active Employees" value={analytics.activeEmployees} icon={CheckCircle2} description={analytics.scope === "own" ? "Your account" : analytics.scope === "team" ? "Your team" : "Available CRM users"}/>
             <StatsCard title="Conversion Rate" value={`${analytics.conversionRate}%`} icon={Percent} description="Leads reaching active client"/>
         </div>
 

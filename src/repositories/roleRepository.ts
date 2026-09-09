@@ -2,7 +2,7 @@ import "server-only";
 
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "@/lib/firebase-admin";
-import { validatePermissions } from "@/lib/permissions";
+import { isPermission } from "@/lib/permissions";
 import type { Permission,Role,RoleStatus } from "@/types/crm-auth";
 
 interface RoleAuditInput {
@@ -32,18 +32,55 @@ function isDateValue(value:unknown):value is Role["createdAt"] {
 }
 
 function mapRole(id:string,data:FirebaseFirestore.DocumentData | undefined):Role | null {
-    if(!data || !isDateValue(data.createdAt) || !isDateValue(data.updatedAt)) return null;
-    const permissions = validatePermissions(data.permissions);
-    if(!permissions) return null;
+    if(!data){
+        if(process.env.NODE_ENV === "development"){
+            console.info("[CRM role validation] Failed",{ roleId:id,reason:"document_data_missing" });
+        }
+        return null;
+    }
+    if(!Array.isArray(data.permissions)){
+        if(process.env.NODE_ENV === "development"){
+            console.info("[CRM role validation] Failed",{
+                roleId:id,
+                reason:"permissions_missing_or_not_array",
+                permissionsIsArray:false
+            });
+        }
+        return null;
+    }
+    const permissions=Array.from(new Set(data.permissions.filter(isPermission)));
+    const ignoredPermissions=data.permissions.filter((permission:unknown)=>!isPermission(permission));
+    if(process.env.NODE_ENV === "development" && ignoredPermissions.length){
+        console.info("[CRM role validation] Unknown permissions ignored",{
+            roleId:id,
+            ignoredPermissions
+        });
+    }
+    const isSystemRole=data.isSystemRole === true || id === "admin" || id === "sales";
+    const status=data.status === "active" || data.status === "disabled"
+        ? data.status
+        : isSystemRole ? "active" : "disabled";
+    const fallbackDate=new Date(0);
+    if(process.env.NODE_ENV === "development" && (!isDateValue(data.createdAt) || !isDateValue(data.updatedAt) || data.status === undefined)){
+        console.info("[CRM role validation] Legacy fields defaulted",{
+            roleId:id,
+            missingFields:[
+                ...(!isDateValue(data.createdAt) ? ["createdAt"] : []),
+                ...(!isDateValue(data.updatedAt) ? ["updatedAt"] : []),
+                ...(data.status === undefined ? ["status"] : [])
+            ],
+            resolvedStatus:status
+        });
+    }
     return {
         id,
         name:typeof data.name === "string" ? data.name : "",
         description:typeof data.description === "string" ? data.description : "",
         permissions,
-        isSystemRole:data.isSystemRole === true,
-        status:data.status === "active" ? "active" : "disabled",
-        createdAt:data.createdAt,
-        updatedAt:data.updatedAt,
+        isSystemRole,
+        status,
+        createdAt:isDateValue(data.createdAt) ? data.createdAt : fallbackDate,
+        updatedAt:isDateValue(data.updatedAt) ? data.updatedAt : fallbackDate,
         createdById:typeof data.createdById === "string" ? data.createdById : "system",
         updatedById:typeof data.updatedById === "string" ? data.updatedById : "system"
     };
@@ -52,6 +89,12 @@ function mapRole(id:string,data:FirebaseFirestore.DocumentData | undefined):Role
 export async function getRoleById(id:string):Promise<Role | null> {
     if(!id) return null;
     const snapshot = await db.collection("roles").doc(id).get();
+    if(process.env.NODE_ENV === "development"){
+        console.info("[CRM role lookup]",{
+            firestorePath:`roles/${id}`,
+            documentExists:snapshot.exists
+        });
+    }
     return snapshot.exists ? mapRole(snapshot.id,snapshot.data()) : null;
 }
 

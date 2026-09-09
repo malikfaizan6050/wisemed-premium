@@ -16,6 +16,7 @@ import LeadTable from "@/components/CRM/LeadTable";
 import PipelineOverview from "@/components/CRM/PipelineOverview";
 import AnalyticsDashboard from "@/components/CRM/AnalyticsDashboard";
 import AsyncError from "@/components/CRM/AsyncError";
+import { useCRMUser } from "@/components/CRM/CRMUserContext";
 
 const initialFilters:DashboardFilterValues = {
     search:"",pipeline:"all",assignee:"all",source:"all",specialty:"all",
@@ -24,6 +25,7 @@ const initialFilters:DashboardFilterValues = {
 
 export default function Dashboard() {
     const router = useRouter();
+    const { accessDeniedMessage,hasPermission } = useCRMUser();
     const { leads,loading,checkingAuth,error,refresh } = useDashboardLeads();
     const [filters,setFilters] = useState(initialFilters);
     const [selectedLead,setSelectedLead] = useState<Lead | null>(null);
@@ -46,6 +48,7 @@ export default function Dashboard() {
         const bTime = toLeadDate(b.createdAt)?.getTime() ?? 0;
         return bTime-aTime || b.id.localeCompare(a.id);
     }),[leads,filters]);
+    const mayCreateLead=hasPermission("leads.create");
 
     if(checkingAuth) return <div className="flex min-h-screen items-center justify-center bg-slate-50">Checking authentication...</div>;
 
@@ -54,13 +57,14 @@ export default function Dashboard() {
     return <main className="min-h-screen bg-slate-50 p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
             <DashboardHeader
+                canCreateLead={mayCreateLead}
                 onCreate={()=>{ setEditingLead(null);setModalOpen(true);setFeedback(""); }}
                 onLogout={async()=>{ await signOut(auth);router.replace("/login"); }}
             />
 
-            <div className="mt-6">{error ? <AsyncError message={error} onRetry={()=>void refresh()}/> : <FeedbackMessage message={feedback} tone="success"/>}</div>
+            <div className="mt-6">{accessDeniedMessage ? <FeedbackMessage message={accessDeniedMessage}/> : error ? <AsyncError message={error} onRetry={()=>void refresh()}/> : <FeedbackMessage message={feedback} tone="success"/>}</div>
 
-            <AnalyticsDashboard/>
+            {hasPermission("analytics.read") && <AnalyticsDashboard/>}
 
             <DashboardFilters values={filters} {...choices} onChange={(field,value)=>setFilters((current)=>({ ...current,[field]:value }))}/>
             <PipelineOverview leads={filteredLeads}/>
@@ -68,7 +72,7 @@ export default function Dashboard() {
         </div>
 
         <LeadDrawer key={displayedLead?.id ?? "closed"} lead={displayedLead} onClose={()=>setSelectedLead(null)} onUpdated={()=>void refresh()} onEdit={(lead)=>{ setEditingLead(lead);setModalOpen(true); }}/>
-        {modalOpen && (
+        {modalOpen && (editingLead || mayCreateLead) && (
             <CreateLeadModal
                 key={editingLead?.id ?? "create"}
                 open

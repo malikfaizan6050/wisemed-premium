@@ -5,7 +5,9 @@ service cloud.firestore {
     function isActiveCrmUser() {
       return request.auth != null &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "active";
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "active" &&
+        (!("mustChangePassword" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.mustChangePassword == false);
     }
 
     function currentCrmUser() {
@@ -21,9 +23,60 @@ service cloud.firestore {
         permission in currentRole().permissions;
     }
 
+    function isAdmin() {
+      return isActiveCrmUser() && currentCrmUser().roleId == "admin";
+    }
+
+    function isManager() {
+      return isActiveCrmUser() && currentCrmUser().roleId == "sales_manager";
+    }
+
+    function isSalesperson() {
+      return isActiveCrmUser() && currentCrmUser().roleId == "sales";
+    }
+
+    function isOwnedByCurrentUser() {
+      return "ownerId" in resource.data &&
+        resource.data.ownerId == request.auth.uid;
+    }
+
+    function ownerIsActiveTeamMember(ownerId) {
+      return ownerId is string &&
+        exists(/databases/$(database)/documents/users/$(ownerId)) &&
+        get(/databases/$(database)/documents/users/$(ownerId)).data.status == "active" &&
+        (
+          (
+            "teamId" in currentCrmUser() &&
+            currentCrmUser().teamId is string &&
+            currentCrmUser().teamId != "" &&
+            "teamId" in get(/databases/$(database)/documents/users/$(ownerId)).data &&
+            get(/databases/$(database)/documents/users/$(ownerId)).data.teamId == currentCrmUser().teamId
+          ) ||
+          (
+            (!("teamId" in currentCrmUser()) ||
+              currentCrmUser().teamId == null ||
+              currentCrmUser().teamId == "") &&
+            "managerId" in get(/databases/$(database)/documents/users/$(ownerId)).data &&
+            get(/databases/$(database)/documents/users/$(ownerId)).data.managerId == request.auth.uid
+          )
+        );
+    }
+
+    function isManagerTeamLead() {
+      return isOwnedByCurrentUser() ||
+        ("ownerId" in resource.data && ownerIsActiveTeamMember(resource.data.ownerId));
+    }
+
     match /crm_leads/{leadId} {
-      allow read: if hasPermission("leads.read.all") ||
-        (hasPermission("leads.read.owned") && resource.data.ownerId == request.auth.uid);
+      allow read: if
+        (isAdmin() && hasPermission("leads.read.all")) ||
+        (isManager() && hasPermission("leads.read.all") && isManagerTeamLead()) ||
+        (isSalesperson() &&
+          (hasPermission("leads.read.owned") || hasPermission("leads.read.all")) &&
+          isOwnedByCurrentUser()) ||
+        (!isAdmin() && !isManager() && !isSalesperson() &&
+          (hasPermission("leads.read.all") ||
+            (hasPermission("leads.read.owned") && isOwnedByCurrentUser())));
       allow write: if false;
     }
 
@@ -33,7 +86,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if isActiveCrmUser() && request.auth.uid == userId;
       allow write: if false;
     }
 
@@ -48,6 +101,11 @@ service cloud.firestore {
     match /employee_activities/{activityId} {
       allow read: if isActiveCrmUser() && request.auth.uid == resource.data.actorId;
       allow write: if false;
+    }
+
+    // Import history is server-managed through the admin-only import API.
+    match /import_history/{importId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

@@ -22,7 +22,7 @@ export interface DashboardAnalytics {
     assignedLeads:number;
     activeEmployees:number;
     conversionRate:number;
-    scope:"all" | "own";
+    scope:"all" | "team" | "own";
     leadsByEmployee:EmployeeAnalytics[];
     recentActivities:AnalyticsActivity[];
     pipelineSummary:PipelineMetric[];

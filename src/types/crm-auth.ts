@@ -18,10 +18,12 @@ export interface CRMUser {
     teamId:string | null;
     managerId:string | null;
     status:CRMUserStatus;
-    createdAt:CRMDateValue;
+    createdAt:CRMDateValue | null;
     createdById:string;
     updatedAt:CRMDateValue;
     lastLoginAt:CRMDateValue | null;
+    mustChangePassword:boolean;
+    temporaryPasswordExpiresAt:CRMDateValue | null;
 }
 
 export interface Role {
@@ -70,6 +72,16 @@ export interface LeadOwnership {
     } | null;
     assignedById:string | null;
     assignedAt:CRMDateValue | null;
+}
+
+export interface AssignableCRMUser {
+    uid:string;
+    displayName:string;
+    email:string;
+    role:{
+        id:string;
+        name:string;
+    };
 }
 
 export interface CurrentCRMUser extends CRMUser {

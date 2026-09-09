@@ -1,7 +1,7 @@
-import type { CRMUser } from "@/types/crm-auth";
+import type { AssignableCRMUser } from "@/types/crm-auth";
 
 interface Props {
-    users:CRMUser[];
+    users:AssignableCRMUser[];
     value:string;
     onChange:(uid:string)=>void;
     disabled?:boolean;

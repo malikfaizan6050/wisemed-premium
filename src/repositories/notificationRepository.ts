@@ -15,3 +15,22 @@ export async function markNotificationRead(id:string,userId:string){
     const reference=db.collection("notifications").doc(id);
     return db.runTransaction(async(transaction)=>{ const snapshot=await transaction.get(reference);if(!snapshot.exists || snapshot.data()?.userId!==userId) return false;transaction.update(reference,{ read:true });return true; });
 }
+
+export async function claimNotificationEmail(id:string) {
+    const reference=db.collection("notifications").doc(id);
+    return db.runTransaction(async(transaction)=>{
+        const snapshot=await transaction.get(reference);
+        if(!snapshot.exists) return false;
+        const status=snapshot.data()?.emailStatus;
+        if(status==="sent"||status==="sending") return false;
+        transaction.update(reference,{ emailStatus:"sending",emailAttemptedAt:FieldValue.serverTimestamp() });
+        return true;
+    });
+}
+
+export async function completeNotificationEmail(id:string,sent:boolean) {
+    await db.collection("notifications").doc(id).update({
+        emailStatus:sent?"sent":"failed",
+        emailCompletedAt:FieldValue.serverTimestamp()
+    });
+}

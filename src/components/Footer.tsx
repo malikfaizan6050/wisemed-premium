@@ -4,26 +4,30 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
+import Link from "next/link";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 const solutions = [
-  "Medical Billing",
-  "Claims Management",
-  "Denial Management",
-  "Revenue Cycle Management",
+  { label:"Medical Billing",href:"/services#medical-billing" },
+  { label:"Claims Management",href:"/services#claims-management" },
+  { label:"Denial Management",href:"/services#denial-management" },
+  { label:"Revenue Cycle Management",href:"/solutions" },
 ];
 
 
 const company = [
-  "About Us",
-  "Contact",
-  "Privacy Policy",
-  "HIPAA Notice",
+  { label:"About Us",href:"/about" },
+  { label:"Contact",href:"/contact" },
+  { label:"Privacy Policy",href:"/privacy" },
+  { label:"HIPAA Notice",href:"/hipaa" },
 ];
 
 
 export default function Footer(){
 
 return (
+
+<>
 
 <footer
 className="
@@ -175,7 +179,7 @@ space-y-3
 solutions.map(item=>(
 
 <li
-key={item}
+key={item.label}
 className="
 text-sm
 text-slate-600
@@ -184,7 +188,7 @@ cursor-pointer
 "
 >
 
-{item}
+<Link href={item.href}>{item.label}</Link>
 
 </li>
 
@@ -229,7 +233,7 @@ space-y-3
 company.map(item=>(
 
 <li
-key={item}
+key={item.label}
 className="
 text-sm
 text-slate-600
@@ -238,7 +242,7 @@ cursor-pointer
 "
 >
 
-{item}
+{item.href ? <Link href={item.href}>{item.label}</Link> : item.label}
 
 </li>
 
@@ -291,17 +295,17 @@ gap-5
 "
 >
 
-<span>
+<Link href="/privacy" className="hover:text-blue-600">
 Privacy
-</span>
+</Link>
 
-<span>
+<Link href="/terms" className="hover:text-blue-600">
 Terms
-</span>
+</Link>
 
-<span>
+<Link href="/hipaa" className="hover:text-blue-600">
 HIPAA
-</span>
+</Link>
 
 
 </div>
@@ -318,6 +322,10 @@ HIPAA
 
 
 </footer>
+
+<WhatsAppButton />
+
+</>
 
 );
 

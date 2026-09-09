@@ -6,6 +6,7 @@ import {
   FileCheck,
   TrendingUp,
 } from "lucide-react";
+import Link from "next/link";
 
 
 const metrics = [
@@ -260,7 +261,8 @@ text-slate-800
 
 
 
-<button
+<Link
+href="/solutions"
 className="
 mt-10
 rounded-full
@@ -278,7 +280,7 @@ transition
 
 Explore Revenue Solutions →
 
-</button>
+</Link>
 
 
 

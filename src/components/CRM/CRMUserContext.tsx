@@ -1,26 +1,31 @@
 "use client";
 
-import { createContext,useContext,useEffect,useMemo,useState } from "react";
+import { createContext,useCallback,useContext,useEffect,useMemo,useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc,getDoc } from "firebase/firestore";
-import { auth,db } from "@/lib/firebase";
-import { validatePermissions,type Permission } from "@/lib/permissions";
+import { auth } from "@/lib/firebase";
+import { canCreateLead,hasPermission as userHasPermission,validatePermissions,type Permission } from "@/lib/permissions";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 interface CRMUserContextValue {
     displayName:string;
+    roleId:string;
     roleName:string;
     permissions:Permission[];
     loading:boolean;
+    accessDeniedMessage:string;
     hasPermission:(permission:Permission)=>boolean;
+    reportAccessDenied:()=>void;
 }
 
 const CRMUserContext = createContext<CRMUserContextValue | null>(null);
 
 export function CRMUserProvider({ children }:{ children:React.ReactNode }) {
     const [displayName,setDisplayName] = useState("");
+    const [roleId,setRoleId] = useState("");
     const [roleName,setRoleName] = useState("");
     const [permissions,setPermissions] = useState<Permission[]>([]);
     const [loading,setLoading] = useState(true);
+    const [accessDeniedMessage,setAccessDeniedMessage] = useState("");
 
     useEffect(()=>onAuthStateChanged(auth,async(firebaseUser)=>{
         setLoading(true);
@@ -28,37 +33,69 @@ export function CRMUserProvider({ children }:{ children:React.ReactNode }) {
 
         if(!firebaseUser){
             setDisplayName("");
+            setRoleId("");
             setRoleName("");
             setLoading(false);
             return;
         }
 
         try {
-            const profileSnapshot = await getDoc(doc(db,"users",firebaseUser.uid));
-            const profile = profileSnapshot.data();
-            if(!profile || profile.status !== "active" || typeof profile.roleId !== "string"){
+            const response = await authenticatedFetch("/api/users/me");
+            const result:unknown = await response.json().catch(()=>null);
+            const responseCode=result&&typeof result==="object"&&"code" in result?result.code:null;
+            if(responseCode==="password_change_required"){
+                window.location.replace("/change-password");
+                return;
+            }
+            if(process.env.NODE_ENV === "development"){
+                console.info("[CRMUserContext] Profile response",{
+                    firebaseUserUid:firebaseUser.uid,
+                    apiResponseStatus:response.status,
+                    apiResponseBody:result,
+                    crmUserState:{ displayName:"",roleName:"",permissions:[] }
+                });
+            }
+            if(!response.ok || !result || typeof result !== "object"){
                 setDisplayName(firebaseUser.displayName ?? firebaseUser.email ?? "CRM User");
+                setRoleId("");
                 setRoleName("");
                 return;
             }
-
-            const roleSnapshot = await getDoc(doc(db,"roles",profile.roleId));
-            const role = roleSnapshot.data();
-            const validatedPermissions = role?.status === "active"
-                ? validatePermissions(role.permissions)
+            const profile = "user" in result && result.user && typeof result.user === "object"
+                ? result.user as Record<string,unknown>
+                : null;
+            const role = "role" in result && result.role && typeof result.role === "object"
+                ? result.role as Record<string,unknown>
+                : null;
+            const validatedPermissions = "permissions" in result
+                ? validatePermissions(result.permissions)
                 : null;
 
             setDisplayName(
-                typeof profile.displayName === "string" && profile.displayName
+                profile && typeof profile.displayName === "string" && profile.displayName
                     ? profile.displayName
                     : firebaseUser.displayName ?? firebaseUser.email ?? "CRM User"
             );
             setRoleName(typeof role?.name === "string" ? role.name : "");
+            setRoleId(profile && typeof profile.roleId === "string" ? profile.roleId : "");
             setPermissions(validatedPermissions ?? []);
+            if(process.env.NODE_ENV === "development"){
+                console.info("[CRMUserContext] State resolved",{
+                    firebaseUserUid:firebaseUser.uid,
+                    apiResponseStatus:response.status,
+                    apiResponseBody:result,
+                    crmUserState:{
+                        displayName:profile && typeof profile.displayName === "string" ? profile.displayName : "",
+                        roleName:typeof role?.name === "string" ? role.name : "",
+                        permissions:validatedPermissions ?? []
+                    }
+                });
+            }
         }
         catch {
             setDisplayName(firebaseUser.displayName ?? firebaseUser.email ?? "CRM User");
             setRoleName("");
+            setRoleId("");
             setPermissions([]);
         }
         finally {
@@ -66,13 +103,21 @@ export function CRMUserProvider({ children }:{ children:React.ReactNode }) {
         }
     }),[]);
 
+    const hasPermission=useCallback((permission:Permission)=>roleId === "admin" ? true : permission === "leads.create"
+        ? canCreateLead(roleId,permissions,roleName)
+        : userHasPermission(permissions,permission),[permissions,roleId,roleName]);
+    const reportAccessDenied=useCallback(()=>setAccessDeniedMessage("You do not have permission to access this page."),[]);
+
     const value = useMemo<CRMUserContextValue>(()=>({
         displayName,
+        roleId,
         roleName,
         permissions,
         loading,
-        hasPermission:(permission)=>permissions.includes(permission)
-    }),[displayName,roleName,permissions,loading]);
+        accessDeniedMessage,
+        hasPermission,
+        reportAccessDenied
+    }),[displayName,roleId,roleName,permissions,loading,accessDeniedMessage,hasPermission,reportAccessDenied]);
 
     return <CRMUserContext.Provider value={value}>{children}</CRMUserContext.Provider>;
 }

@@ -4,6 +4,9 @@ import { hasPermission } from "@/lib/apiAuth";
 import { getAnalyticsActivities,getAnalyticsEmployees,getAnalyticsLeads } from "@/repositories/analyticsRepository";
 import type { CurrentCRMUser } from "@/types/crm-auth";
 import type { DashboardAnalytics } from "@/types/crm-analytics";
+import { listRoles } from "@/repositories/roleRepository";
+import { isSalesUser } from "@/lib/roleClassification";
+import { getLeadVisibilityScope } from "@/services/leadVisibilityService";
 
 export class AnalyticsServiceError extends Error {
     constructor(message:string,public readonly status:number) { super(message); }
@@ -12,16 +15,23 @@ export class AnalyticsServiceError extends Error {
 const completedStatuses = new Set(["active_client","lost"]);
 
 export async function getDashboardAnalytics(viewer:CurrentCRMUser):Promise<DashboardAnalytics> {
+    if(!hasPermission(viewer,"analytics.read")){
+        throw new AnalyticsServiceError("Insufficient permissions",403);
+    }
     const fullAccess = hasPermission(viewer,"activities.read.all") || hasPermission(viewer,"leads.read.all");
     const ownAccess = hasPermission(viewer,"activities.read.own") || hasPermission(viewer,"leads.read.owned");
     if(!fullAccess && !ownAccess) throw new AnalyticsServiceError("Insufficient permissions",403);
 
-    const ownerId = fullAccess ? undefined : viewer.uid;
-    const [leads,employees,activities] = await Promise.all([
-        getAnalyticsLeads(ownerId),
-        getAnalyticsEmployees(ownerId),
-        getAnalyticsActivities(ownerId)
+    const visibility=await getLeadVisibilityScope(viewer);
+    const ownerIds=visibility.kind==="all"?undefined:visibility.ownerIds;
+    const [leads,allEmployees,activities,roles] = await Promise.all([
+        getAnalyticsLeads(ownerIds),
+        getAnalyticsEmployees(ownerIds),
+        getAnalyticsActivities(ownerIds),
+        listRoles()
     ]);
+    const roleMap=new Map(roles.map((role)=>[role.id,role]));
+    const employees=allEmployees.filter((employee)=>isSalesUser(roleMap.get(employee.roleId)));
     const employeeMap = new Map(employees.map((employee)=>[employee.uid,employee]));
     const leadMap = new Map(leads.map((lead)=>[lead.id,lead]));
     const activityCount = new Map<string,number>();
@@ -48,7 +58,7 @@ export async function getDashboardAnalytics(viewer:CurrentCRMUser):Promise<Dashb
         assignedLeads,
         activeEmployees:employees.length,
         conversionRate:leads.length ? Math.round((convertedLeads/leads.length)*1000)/10 : 0,
-        scope:fullAccess ? "all" : "own",
+        scope:visibility.kind==="all"?"all":ownerIds?.length===1&&ownerIds[0]===viewer.uid?"own":"team",
         leadsByEmployee,
         pipelineSummary:Array.from(pipelineCounts,([status,count])=>({ status,count })).sort((first,second)=>second.count-first.count),
         recentActivities:activities.slice(0,10).map((activity)=>{

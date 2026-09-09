@@ -8,19 +8,19 @@ import Link from "next/link";
 const links = [
   {
     name:"Platform",
-    href:"#"
+    href:"/solutions"
   },
   {
     name:"Solutions",
-    href:"#"
+    href:"/solutions"
   },
   {
     name:"Services",
-    href:"#"
+    href:"/services"
   },
   {
     name:"Resources",
-    href:"#"
+    href:"/resources"
   },
 ];
 

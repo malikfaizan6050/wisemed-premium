@@ -20,7 +20,7 @@ export function getLeadOwner(lead:LeadWithOwnership):LeadOwner | null {
 }
 
 export function canAssignLead(user:CurrentCRMUser) {
-    return hasPermission(user,"leads.assign");
+    return user.role.id!=="sales"&&hasPermission(user,"leads.assign");
 }
 
 export function canAccessLead(

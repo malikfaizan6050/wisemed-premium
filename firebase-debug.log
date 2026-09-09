@@ -1,0 +1,105 @@
+[debug] [2026-08-27T12:07:23.470Z] ----------------------------------------------------------------------
+[debug] [2026-08-27T12:07:23.476Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\malik\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js help deploy
+[debug] [2026-08-27T12:07:23.476Z] CLI Version:   15.28.1
+[debug] [2026-08-27T12:07:23.477Z] Platform:      win32
+[debug] [2026-08-27T12:07:23.477Z] Node Version:  v24.19.0
+[debug] [2026-08-27T12:07:23.477Z] Detected Agent: codex_cli
+[debug] [2026-08-27T12:07:23.477Z] Time:          Thu Aug 27 2026 17:07:23 GMT+0500 (Pakistan Standard Time)
+[debug] [2026-08-27T12:07:23.478Z] ----------------------------------------------------------------------
+[debug] 
+[info]  Privacy Policy: https://firebase.google.com/support/privacy
+[info] 
+[debug] [2026-08-27T12:10:38.768Z] ----------------------------------------------------------------------
+[debug] [2026-08-27T12:10:38.774Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\malik\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js emulators:exec --only firestore cmd /c exit 0
+[debug] [2026-08-27T12:10:38.777Z] CLI Version:   15.28.1
+[debug] [2026-08-27T12:10:38.777Z] Platform:      win32
+[debug] [2026-08-27T12:10:38.778Z] Node Version:  v24.19.0
+[debug] [2026-08-27T12:10:38.779Z] Detected Agent: codex_cli
+[debug] [2026-08-27T12:10:38.779Z] Time:          Thu Aug 27 2026 17:10:38 GMT+0500 (Pakistan Standard Time)
+[debug] [2026-08-27T12:10:38.780Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-27T12:10:41.111Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-27T12:10:41.113Z] > authorizing via signed-in user (malikfaizan6050@gmail.com)
+[debug] [2026-08-27T12:10:41.169Z] Could not find VSCode notification endpoint: TypeError: fetch failed. If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[info] i  emulators: Shutting down emulators. {"metadata":{"emulator":{"name":"hub"},"message":"Shutting down emulators."}}
+[debug] [2026-08-27T12:10:41.178Z] Could not find VSCode notification endpoint: TypeError: fetch failed. If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[debug] [2026-08-27T12:10:41.629Z] Error: spawn java ENOENT
+    at ChildProcess._handle.onexit (node:internal/child_process:287:19)
+    at onErrorNT (node:internal/child_process:525:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+[error] 
+[error] Error: Could not spawn `java -version`. Please make sure Java is installed and on your system PATH.
+[debug] [2026-08-27T12:11:04.640Z] ----------------------------------------------------------------------
+[debug] [2026-08-27T12:11:04.646Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\malik\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules
+[debug] [2026-08-27T12:11:04.647Z] CLI Version:   15.28.1
+[debug] [2026-08-27T12:11:04.647Z] Platform:      win32
+[debug] [2026-08-27T12:11:04.648Z] Node Version:  v24.19.0
+[debug] [2026-08-27T12:11:04.648Z] Detected Agent: codex_cli
+[debug] [2026-08-27T12:11:04.648Z] Time:          Thu Aug 27 2026 17:11:04 GMT+0500 (Pakistan Standard Time)
+[debug] [2026-08-27T12:11:04.649Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-08-27T12:11:07.359Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-27T12:11:07.360Z] > authorizing via signed-in user (malikfaizan6050@gmail.com)
+[debug] [2026-08-27T12:11:07.361Z] [iam] checking project wisemedbilling-c0d0a for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2026-08-27T12:11:07.397Z] Checked if tokens are valid: false, expires at: 1787799917364
+[debug] [2026-08-27T12:11:07.398Z] Checked if tokens are valid: false, expires at: 1787799917364
+[debug] [2026-08-27T12:11:07.398Z] > refreshing access token with scopes: []
+[debug] [2026-08-27T12:11:07.407Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-08-27T12:11:07.408Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-08-27T12:11:08.435Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-08-27T12:11:08.435Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-08-27T12:11:08.481Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/wisemedbilling-c0d0a:testIamPermissions [none]
+[debug] [2026-08-27T12:11:08.482Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/wisemedbilling-c0d0a:testIamPermissions  x-goog-user-project=wisemedbilling-c0d0a
+[debug] [2026-08-27T12:11:08.482Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/wisemedbilling-c0d0a:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2026-08-27T12:11:10.401Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/wisemedbilling-c0d0a:testIamPermissions 200
+[debug] [2026-08-27T12:11:10.402Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/wisemedbilling-c0d0a:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'wisemedbilling-c0d0a'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-08-27T12:11:10.415Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:10.416Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:10.416Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/wisemedbilling-c0d0a/databases/(default) [none]
+[debug] [2026-08-27T12:11:12.304Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/wisemedbilling-c0d0a/databases/(default) 200
+[debug] [2026-08-27T12:11:12.305Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/wisemedbilling-c0d0a/databases/(default) {"name":"projects/wisemedbilling-c0d0a/databases/(default)","uid":"693c6d28-10d7-4bcc-96fb-7b26d0623132","createTime":"2026-08-13T12:08:00.097225Z","updateTime":"2026-08-13T12:08:00.097225Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-08-27T11:11:12.711012Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","enhancedTextSearchQueryMode":"ENHANCED_QUERY_MODE_ENABLED","etag":"IL7d/9rjwJYDMMGQ8YnJnZYD"}
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-08-27T12:11:12.307Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:12.307Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:12.308Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a:test [none]
+[debug] [2026-08-27T12:11:12.308Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a:test [omitted]
+[debug] [2026-08-27T12:11:13.674Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a:test 200
+[debug] [2026-08-27T12:11:13.674Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-08-27T12:11:13.677Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:13.678Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:13.678Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/releases pageSize=10&pageToken=
+[debug] [2026-08-27T12:11:14.107Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/releases 200
+[debug] [2026-08-27T12:11:14.108Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/releases {"releases":[{"name":"projects/wisemedbilling-c0d0a/releases/cloud.firestore","rulesetName":"projects/wisemedbilling-c0d0a/rulesets/3a32280d-eed6-45a4-a79b-35d6a64137a2","createTime":"2026-08-13T12:08:04.295867Z","updateTime":"2026-08-26T23:32:59.489235Z"}]}
+[debug] [2026-08-27T12:11:14.109Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:14.109Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:14.109Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/rulesets/3a32280d-eed6-45a4-a79b-35d6a64137a2 [none]
+[debug] [2026-08-27T12:11:14.523Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/rulesets/3a32280d-eed6-45a4-a79b-35d6a64137a2 200
+[debug] [2026-08-27T12:11:14.524Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/rulesets/3a32280d-eed6-45a4-a79b-35d6a64137a2 [omitted]
+[info] i  firestore: uploading rules firestore.rules... 
+[debug] [2026-08-27T12:11:14.526Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:14.526Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:14.526Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/rulesets [none]
+[debug] [2026-08-27T12:11:14.527Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/rulesets [omitted]
+[debug] [2026-08-27T12:11:15.564Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/rulesets 200
+[debug] [2026-08-27T12:11:15.565Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/rulesets {"name":"projects/wisemedbilling-c0d0a/rulesets/4d7daded-92b7-491c-b087-6afdcad2ce1c","source":{"files":[{"content":"rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function isActiveCrmUser() {\n      return request.auth != null &&\n        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&\n        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == \"active\" &&\n        (!(\"mustChangePassword\" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||\n          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.mustChangePassword == false);\n    }\n\n    function currentCrmUser() {\n      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;\n    }\n\n    function currentRole() {\n      return get(/databases/$(database)/documents/roles/$(currentCrmUser().roleId)).data;\n    }\n\n    function hasPermission(permission) {\n      return isActiveCrmUser() && currentRole().status == \"active\" &&\n        permission in currentRole().permissions;\n    }\n\n    function isAdmin() {\n      return isActiveCrmUser() && currentCrmUser().roleId == \"admin\";\n    }\n\n    function isManager() {\n      return isActiveCrmUser() && currentCrmUser().roleId == \"sales_manager\";\n    }\n\n    function isSalesperson() {\n      return isActiveCrmUser() && currentCrmUser().roleId == \"sales\";\n    }\n\n    function isOwnedByCurrentUser() {\n      return \"ownerId\" in resource.data &&\n        resource.data.ownerId == request.auth.uid;\n    }\n\n    function ownerIsActiveTeamMember(ownerId) {\n      return ownerId is string &&\n        exists(/databases/$(database)/documents/users/$(ownerId)) &&\n        get(/databases/$(database)/documents/users/$(ownerId)).data.status == \"active\" &&\n        (\n          (\n            \"teamId\" in currentCrmUser() &&\n            currentCrmUser().teamId is string &&\n            currentCrmUser().teamId != \"\" &&\n            \"teamId\" in get(/databases/$(database)/documents/users/$(ownerId)).data &&\n            get(/databases/$(database)/documents/users/$(ownerId)).data.teamId == currentCrmUser().teamId\n          ) ||\n          (\n            (!(\"teamId\" in currentCrmUser()) ||\n              currentCrmUser().teamId == null ||\n              currentCrmUser().teamId == \"\") &&\n            \"managerId\" in get(/databases/$(database)/documents/users/$(ownerId)).data &&\n            get(/databases/$(database)/documents/users/$(ownerId)).data.managerId == request.auth.uid\n          )\n        );\n    }\n\n    function isManagerTeamLead() {\n      return isOwnedByCurrentUser() ||\n        (\"ownerId\" in resource.data && ownerIsActiveTeamMember(resource.data.ownerId));\n    }\n\n    match /crm_leads/{leadId} {\n      allow read: if\n        (isAdmin() && hasPermission(\"leads.read.all\")) ||\n        (isManager() && hasPermission(\"leads.read.all\") && isManagerTeamLead()) ||\n        (isSalesperson() &&\n          (hasPermission(\"leads.read.owned\") || hasPermission(\"leads.read.all\")) &&\n          isOwnedByCurrentUser()) ||\n        (!isAdmin() && !isManager() && !isSalesperson() &&\n          (hasPermission(\"leads.read.all\") ||\n            (hasPermission(\"leads.read.owned\") && isOwnedByCurrentUser())));\n      allow write: if false;\n    }\n\n    match /consultations/{consultationId} {\n      allow read: if false;\n      allow write: if false;\n    }\n\n    match /users/{userId} {\n      allow read: if isActiveCrmUser() && request.auth.uid == userId;\n      allow write: if false;\n    }\n\n    match /roles/{roleId} {\n      allow read: if isActiveCrmUser() && (\n        roleId == currentCrmUser().roleId ||\n        hasPermission(\"roles.read\") || hasPermission(\"roles.manage\")\n      );\n      allow write: if false;\n    }\n\n    match /employee_activities/{activityId} {\n      allow read: if isActiveCrmUser() && request.auth.uid == resource.data.actorId;\n      allow write: if false;\n    }\n\n    match /{document=**} {\n      allow read, write: if false;\n    }\n  }\n}\n","name":"firestore.rules"}]},"createTime":"2026-08-27T12:11:16.033087Z","metadata":{"services":["cloud.firestore"]}}
+[debug] [2026-08-27T12:11:15.565Z] [rules] created ruleset projects/wisemedbilling-c0d0a/rulesets/4d7daded-92b7-491c-b087-6afdcad2ce1c
+[debug] [2026-08-27T12:11:15.567Z] [rules] releasing cloud.firestore with ruleset projects/wisemedbilling-c0d0a/rulesets/4d7daded-92b7-491c-b087-6afdcad2ce1c
+[debug] [2026-08-27T12:11:15.568Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:15.568Z] Checked if tokens are valid: true, expires at: 1787836267437
+[debug] [2026-08-27T12:11:15.569Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/releases/cloud.firestore [none]
+[debug] [2026-08-27T12:11:15.569Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/releases/cloud.firestore {"release":{"name":"projects/wisemedbilling-c0d0a/releases/cloud.firestore","rulesetName":"projects/wisemedbilling-c0d0a/rulesets/4d7daded-92b7-491c-b087-6afdcad2ce1c"}}
+[debug] [2026-08-27T12:11:16.701Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/releases/cloud.firestore 200
+[debug] [2026-08-27T12:11:16.701Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/wisemedbilling-c0d0a/releases/cloud.firestore {"name":"projects/wisemedbilling-c0d0a/releases/cloud.firestore","rulesetName":"projects/wisemedbilling-c0d0a/rulesets/4d7daded-92b7-491c-b087-6afdcad2ce1c","createTime":"2026-08-13T12:08:04.295867Z","updateTime":"2026-08-27T12:11:17.200426Z"}
+[debug] [2026-08-27T12:11:16.702Z] [rules] updated release projects/wisemedbilling-c0d0a/releases/cloud.firestore
+[info] +  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] +  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/wisemedbilling-c0d0a/overview

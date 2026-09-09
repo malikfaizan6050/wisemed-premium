@@ -11,18 +11,19 @@ import { getCurrentCRMUser,hasPermission,requirePermission } from "@/lib/apiAuth
 import { getLeadContactError } from "@/lib/leadValidation";
 import { recordActivity } from "@/services/activityService";
 import { enforceRateLimit } from "@/lib/rateLimit";
-import { listLeadsForUser } from "@/repositories/leadRepository";
+import { listLeadsForOwners } from "@/repositories/leadRepository";
+import { getLeadVisibilityScope } from "@/services/leadVisibilityService";
 
 export async function GET(request:NextRequest) {
     const limited=enforceRateLimit(request,"lead.read",120);
     if(limited) return limited;
     const user=await getCurrentCRMUser(request);
     if(!user) return NextResponse.json({ error:"Active CRM user profile required",code:"unauthenticated" },{ status:401 });
-    const readAll=hasPermission(user,"leads.read.all");
-    if(!readAll && !hasPermission(user,"leads.read.owned")) return NextResponse.json({ error:"Insufficient permissions",code:"forbidden" },{ status:403 });
+    if(!hasPermission(user,"leads.read.all") && !hasPermission(user,"leads.read.owned")) return NextResponse.json({ error:"Insufficient permissions",code:"forbidden" },{ status:403 });
     try{
         const requested=Number(request.nextUrl.searchParams.get("limit")??500);
-        const leads=await listLeadsForUser(readAll?undefined:user.uid,Number.isFinite(requested)?requested:500);
+        const scope=await getLeadVisibilityScope(user);
+        const leads=await listLeadsForOwners(scope.kind==="all"?null:scope.ownerIds,Number.isFinite(requested)?requested:500);
         return NextResponse.json({ leads });
     }
     catch{ return NextResponse.json({ error:"Unable to load leads",code:"lead_read_failed" },{ status:500 }); }

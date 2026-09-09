@@ -4,6 +4,7 @@ import { createUser,getUsers,type CreateUserInput } from "@/services/userService
 import { NextResponse } from "next/server";
 import type { CRMUserStatus } from "@/types/crm-auth";
 import { getRoleById } from "@/repositories/roleRepository";
+import { isSalesUser } from "@/lib/roleClassification";
 
 export async function GET(request:Request) {
     const user = await getCurrentCRMUser(request);
@@ -26,17 +27,18 @@ export async function GET(request:Request) {
             roleId:searchParams.get("roleId") ?? undefined
         });
 
-        if(!canReadUsers){
+        if(activeOnly){
             const roleEntries = await Promise.all(Array.from(new Set(users.map((entry)=>entry.roleId))).map(async(roleId)=>[roleId,await getRoleById(roleId)] as const));
             const roles = new Map(roleEntries);
-            const assignableUsers = users.flatMap((entry)=>{
+            const assignableUsers = users.filter((entry)=>{
                 const role = roles.get(entry.roleId);
-                const isAssignable = role?.status === "active" && role.permissions.some((permission)=>[
-                    "leads.read.all","leads.read.owned","leads.update.all","leads.update.owned"
-                ].includes(permission));
-                return isAssignable ? [{ uid:entry.uid,displayName:entry.displayName,email:entry.email,role:{ id:role.id,name:role.name } }] : [];
+                return Boolean(role && role.status === "active" && isSalesUser(role));
             });
-            return NextResponse.json({ users:assignableUsers });
+            if(canReadUsers) return NextResponse.json({ users:assignableUsers });
+            return NextResponse.json({ users:assignableUsers.map((entry)=>{
+                const role = roles.get(entry.roleId)!;
+                return { uid:entry.uid,displayName:entry.displayName,email:entry.email,role:{ id:role.id,name:role.name } };
+            }) });
         }
 
         return NextResponse.json({ users });
@@ -53,7 +55,7 @@ export async function POST(request:Request) {
     try {
         const body = await readJsonObject(request);
         const result = await createUser(body as unknown as CreateUserInput,authorization.user);
-        return NextResponse.json(result,{ status:201 });
+        return NextResponse.json(result,{ status:201,headers:{ "Cache-Control":"no-store" } });
     }
     catch(error){
         return userApiError(error);

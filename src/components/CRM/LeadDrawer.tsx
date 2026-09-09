@@ -11,7 +11,7 @@ import FeedbackMessage from "./FeedbackMessage";
 import UserSelect from "./UserSelect";
 import { useCRMUser } from "./CRMUserContext";
 import { getApiError } from "./managementUtils";
-import type { CRMUser } from "@/types/crm-auth";
+import type { AssignableCRMUser } from "@/types/crm-auth";
 
 interface Props {
     lead:Lead | null;
@@ -43,7 +43,8 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
     const canAssign = hasPermission("leads.assign");
     const [notes,setNotes] = useState(lead?.notes ?? "");
     const [saving,setSaving] = useState(false);
-    const [users,setUsers] = useState<CRMUser[]>([]);
+    const [assigning,setAssigning] = useState(false);
+    const [users,setUsers] = useState<AssignableCRMUser[]>([]);
     const [loadingUsers,setLoadingUsers] = useState(canAssign);
     const [selectedOwnerId,setSelectedOwnerId] = useState(lead?.ownerId ?? "");
     const [assignedOwner,setAssignedOwner] = useState(lead?.ownerSnapshot ?? null);
@@ -54,10 +55,10 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
     useEffect(()=>{
         if(!canAssign) return;
         let active = true;
-        void authenticatedFetch("/api/users?active=true&limit=100").then(async(response)=>{
+        void authenticatedFetch("/api/users/assignable").then(async(response)=>{
             const result:unknown = await response.json().catch(()=>null);
             if(!response.ok) throw new Error(getApiError(result,"Unable to load salespeople"));
-            if(active) setUsers(result && typeof result === "object" && "users" in result && Array.isArray(result.users) ? result.users as CRMUser[] : []);
+            if(active) setUsers(result && typeof result === "object" && "users" in result && Array.isArray(result.users) ? result.users as AssignableCRMUser[] : []);
         }).catch((error:unknown)=>{
             if(active) setFeedback({ message:error instanceof Error ? error.message : "Unable to load salespeople",tone:"error" });
         }).finally(()=>{ if(active) setLoadingUsers(false); });
@@ -102,7 +103,7 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
 
     const assignOwner = async() => {
         if(!selectedOwnerId){ setFeedback({ message:"Select a salesperson first",tone:"error" });return; }
-        setSaving(true);
+        setAssigning(true);
         setFeedback({ message:"",tone:"error" });
         try {
             const response = await authenticatedFetch(`/api/leads/${lead.id}/assign`,{
@@ -112,11 +113,20 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
             if(!response.ok) throw new Error(getApiError(result,"Unable to assign salesperson"));
             const selectedUser = users.find((user)=>user.uid === selectedOwnerId);
             if(selectedUser) setAssignedOwner({ displayName:selectedUser.displayName,email:selectedUser.email });
-            setFeedback({ message:"Salesperson assigned successfully",tone:"success" });
+            const assignment=result&&typeof result==="object"&&"assignment" in result&&result.assignment&&typeof result.assignment==="object"
+                ? result.assignment as Record<string,unknown>
+                : null;
+            const changed=assignment?.changed===true;
+            const emailSent=assignment?.emailSent===true;
+            setFeedback(changed
+                ? emailSent
+                    ? { message:"Salesperson assigned successfully. Notification and email sent.",tone:"success" }
+                    : { message:"Salesperson assigned and notified, but the email could not be delivered.",tone:"error" }
+                : { message:"This lead is already assigned to that salesperson.",tone:"success" });
             onUpdated?.();
         }
         catch(error:unknown){ setFeedback({ message:error instanceof Error ? error.message : "Unable to assign salesperson",tone:"error" }); }
-        finally { setSaving(false); }
+        finally { setAssigning(false); }
     };
 
     return (
@@ -142,7 +152,7 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
                 <div className="mt-6 rounded-3xl border bg-slate-50 p-5">
                     <h3 className="font-bold text-slate-900">Lead Ownership</h3>
                     <p className="mt-1 text-sm text-slate-600">{assignedOwner ? `${assignedOwner.displayName} · ${assignedOwner.email}` : "No salesperson assigned"}</p>
-                    {canAssign && <div className="mt-4"><label className="text-xs font-semibold uppercase text-slate-500">Assign Salesperson</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><div className="flex-1"><UserSelect users={users} value={selectedOwnerId} onChange={setSelectedOwnerId} disabled={loadingUsers || saving} placeholder={loadingUsers ? "Loading salespeople..." : "Select salesperson"}/></div><button type="button" onClick={assignOwner} disabled={loadingUsers || saving || !selectedOwnerId} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Assigning..." : "Assign"}</button></div></div>}
+                    {canAssign && <div className="mt-4"><label className="text-xs font-semibold uppercase text-slate-500">Assign Salesperson</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><div className="flex-1"><UserSelect users={users} value={selectedOwnerId} onChange={setSelectedOwnerId} disabled={loadingUsers || assigning} placeholder={loadingUsers ? "Loading salespeople..." : users.length ? "Select salesperson" : "No eligible salespeople"}/></div><button type="button" onClick={assignOwner} disabled={loadingUsers || assigning || !selectedOwnerId} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{assigning ? "Assigning..." : "Assign"}</button></div></div>}
                 </div>
 
                 <LeadDrawerFollowUp

@@ -8,7 +8,7 @@ import {
 } from "@/lib/leadDuplicateDetection";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentCRMUser } from "@/lib/apiAuth";
-import { canAccessLead } from "@/lib/leadOwnership";
+import { canAccessLeadForUser } from "@/services/leadVisibilityService";
 import { recordActivity } from "@/services/activityService";
 import { createNotification } from "@/services/notificationService";
 
@@ -134,7 +134,7 @@ export async function PATCH(
         }
 
         const currentLead = snapshot.data() ?? {};
-        if(!canAccessLead(currentUser,currentLead)){
+        if(!await canAccessLeadForUser(currentUser,currentLead,"update")){
             return NextResponse.json(
                 { error:"You do not have permission to update this lead" },
                 { status:403 }

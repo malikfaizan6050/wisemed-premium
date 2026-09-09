@@ -114,7 +114,7 @@ z-10
 
 src="/images/doctor.png"
 
-alt="Healthcare Doctor"
+alt="Doctor supported by WiseMedBilling healthcare revenue cycle management services"
 
 fill
 
