@@ -18,19 +18,25 @@ export default function Login(){
     const [checking,setChecking]=useState(true);
 
     const routeAuthenticatedUser=useCallback(async()=>{
-        const response=await authenticatedFetch("/api/users/me");
-        const result:unknown=await response.json().catch(()=>null);
-        const code=result&&typeof result==="object"&&"code" in result?result.code:null;
-        if(code==="password_change_required"){ router.replace("/change-password");return; }
-        if(code==="temporary_password_expired"){
+        try {
+            const response=await authenticatedFetch("/api/users/me");
+            const result:unknown=await response.json().catch(()=>null);
+            const code=result&&typeof result==="object"&&"code" in result?result.code:null;
+            if(code==="password_change_required"){ router.replace("/change-password");return; }
+            if(code==="temporary_password_expired"){
+                await signOut(auth);
+                setError("Temporary password expired. Ask an administrator to regenerate it.");
+                setChecking(false);
+                return;
+            }
+            if(response.ok){ router.replace("/dashboard");return; }
             await signOut(auth);
-            setError("Temporary password expired. Ask an administrator to regenerate it.");
-            setChecking(false);
-            return;
+            const message=result && typeof result==="object" && "error" in result && typeof result.error==="string"
+                ? result.error : "CRM server is unavailable. Try again or contact an administrator.";
+            setError(message);
+        } catch {
+            setError("Could not check your CRM account. Check your connection and try again.");
         }
-        if(response.ok){ router.replace("/dashboard");return; }
-        await signOut(auth);
-        setError("Your CRM account is unavailable. Contact an administrator.");
         setChecking(false);
     },[router]);
 
@@ -43,7 +49,7 @@ export default function Login(){
         event.preventDefault();setError("");setLoading(true);setChecking(true);
         try {
             await signInWithEmailAndPassword(auth,email,password);
-            await routeAuthenticatedUser();
+            // The auth-state listener performs the CRM check once.
         }
         catch { setError("Invalid email or password");setChecking(false); }
         finally { setLoading(false); }

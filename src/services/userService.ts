@@ -309,7 +309,7 @@ export async function handlePasswordAction(uid:string,actor:CurrentCRMUser) {
 
 export async function completeTemporaryPasswordSetup(uid:string,newPassword:unknown) {
     const user = await getUser(uid);
-    if(user.status !== "active" || !user.mustChangePassword){
+    if((user.status !== "active" && user.status !== "invited") || !user.mustChangePassword){
         throw new UserServiceError("Password change is not required",400,"password_change_not_required");
     }
     if(isExpired(user.temporaryPasswordExpiresAt)){
