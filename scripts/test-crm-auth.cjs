@@ -64,6 +64,7 @@ function reset() {
         ["auth_token_invalid", () => { tokenError = { code: "auth/id-token-revoked" }; }],
         ["crm_user_inactive", () => { tokenError = { code: "auth/user-disabled" }; }],
         ["firebase_admin_configuration_error", () => { tokenError = new ConfigurationError(); }],
+        ["firebase_auth_access_denied", () => { tokenError = { code: "auth/insufficient-permission" }; }],
         ["crm_datastore_access_denied", () => { lookupError = { code: 7 }; }],
         ["internal_server_error", () => { lookupError = new Error("not logged"); }]
     ];
@@ -117,6 +118,27 @@ function reset() {
         assert.equal(initialized, false);
         assert.equal(admin.adminAuth.verifyIdToken(), true);
     }
+    // Real role repository mapping must tolerate missing optional fields.
+    const roleRepository = load("src/repositories/roleRepository.ts", {
+        "server-only": {}, "firebase-admin/firestore": { FieldValue: {} },
+        "@/lib/permissions": { isPermission: value => value === "leads.read.owned" },
+        "@/lib/firebase-admin": { db: { collection: name => {
+            assert.equal(name, "roles");
+            return { doc: id => {
+                assert.equal(id, "sales");
+                return { get: async () => ({ exists: true, id, data: () => ({ status: "active", permissions: ["leads.read.owned"] }) }) };
+            } };
+        } } }
+    });
+    const mappedRole = await roleRepository.getRoleById("sales");
+    assert.equal(mappedRole.status, "active");
+    assert.equal(mappedRole.name, "");
+    assert.equal(mappedRole.permissions.length, 1);
+    reset();
+    const minimalUser = await auth.authenticateCRMUser(request("Bearer test-token"));
+    assert.equal(minimalUser.ok, true);
+    assert.equal(minimalUser.user.displayName, "");
+    assert.equal(minimalUser.user.createdAt, null);
     // Exercise the real password-setup function without initializing unrelated services.
     const serviceSource = fs.readFileSync("src/services/userService.ts", "utf8");
     const passwordFunction = serviceSource.slice(serviceSource.indexOf("export async function completeTemporaryPasswordSetup"), serviceSource.indexOf("function generateTemporaryPassword"));
