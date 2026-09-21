@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo,useState } from "react";
-import { Download } from "lucide-react";
+import { Download,Trash2 } from "lucide-react";
+import { LEAD_STAGE_KEYS,getLeadStageLabel } from "@/lib/leadStages";
 import { auth } from "@/lib/firebase";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import { toLeadDate } from "@/lib/leadDates";
@@ -14,7 +15,7 @@ import type { Lead } from "@/types/crm";
 import type { AssignableCRMUser } from "@/types/crm-auth";
 import AsyncError from "@/components/CRM/AsyncError";
 
-const statuses = ["new_inquiry","initial_review","discovery_scheduled","requirements_collected","proposal_sent","contract_review","onboarding","active_client","lost"];
+const statuses = LEAD_STAGE_KEYS;
 const priorities = ["critical","high","standard"];
 
 export default function MyLeadsPage() {
@@ -22,6 +23,8 @@ export default function MyLeadsPage() {
     const { hasPermission,roleId } = useCRMUser();
     const canBulk = hasPermission("leads.update.all");
     const canAssign = hasPermission("leads.assign");
+    const canExport = hasPermission("leads.export");
+    const canDelete = hasPermission("leads.delete");
     const uid = auth.currentUser?.uid ?? "";
     const [selected,setSelected] = useState<string[]>([]);
     const [search,setSearch] = useState("");
@@ -77,23 +80,49 @@ export default function MyLeadsPage() {
         const failed = responses.filter((response)=>!response.ok).length;
         setFeedback(failed ? `${failed} lead updates failed.` : `${selected.length} leads updated successfully.`);setWorking(false);await refresh();
     };
-    const exportCsv = () => {
+    // The CSV is built on the server so the export can be permission-checked and
+    // written to the audit trail. Building it here, as before, meant anyone who
+    // could see a lead could take a copy with no record of it.
+    const exportCsv = async() => {
         const rows = exportMode === "selected" ? owned.filter((lead)=>selected.includes(lead.id)) : exportMode === "filtered" ? filtered : owned;
         if(!rows.length){ setFeedback(exportMode === "selected" ? "Select at least one lead to export." : "No leads are available for this export.");return; }
-        const escape = (value:unknown)=>{ const text=String(value ?? "");const safe=/^[=+\-@]/.test(text)?`'${text}`:text;return `"${safe.replaceAll('"','""')}"`; };
-        const csv = [["Provider","Organization","Email","Phone","Status","Priority","Specialty"],...rows.map((lead)=>[`${lead.firstName} ${lead.lastName}`,lead.organization,lead.email,lead.phone,lead.status,lead.priority,lead.specialty])].map((row)=>row.map(escape).join(",")).join("\n");
-        const url = URL.createObjectURL(new Blob([csv],{ type:"text/csv;charset=utf-8" }));const anchor = document.createElement("a");anchor.href=url;anchor.download=`${exportMode}-leads.csv`;anchor.click();URL.revokeObjectURL(url);
+        setWorking(true);setFeedback("");
+        try {
+            const response = await authenticatedFetch("/api/leads/export",{
+                method:"POST",
+                headers:{ "Content-Type":"application/json" },
+                body:JSON.stringify({ scope:exportMode,leadIds:exportMode === "all" ? [] : rows.map((lead)=>lead.id) })
+            });
+            if(!response.ok){
+                setFeedback(response.status === 403 ? "You do not have permission to export leads." : "Export failed. Try again.");
+                return;
+            }
+            const url = URL.createObjectURL(await response.blob());
+            const anchor = document.createElement("a");anchor.href=url;anchor.download=`${exportMode}-leads.csv`;anchor.click();URL.revokeObjectURL(url);
+            setFeedback(`${rows.length} leads exported successfully.`);
+        }
+        catch { setFeedback("Export failed. Try again."); }
+        finally { setWorking(false); }
+    };
+    const deleteSelected = async() => {
+        if(!selected.length){ setFeedback("Select at least one lead to delete.");return; }
+        if(!window.confirm(`Delete ${selected.length} lead${selected.length === 1 ? "" : "s"}? They can be restored by an administrator.`)) return;
+        setWorking(true);setFeedback("");
+        const responses = await Promise.all(selected.map((id)=>authenticatedFetch(`/api/leads/${id}`,{ method:"DELETE" })));
+        const failed = responses.filter((response)=>!response.ok).length;
+        setFeedback(failed ? `${failed} of ${selected.length} deletions failed.` : `${selected.length} leads deleted.`);
+        setSelected([]);setWorking(false);await refresh();
     };
     const columns:CRMTableColumn<Lead>[] = [
         { key:"select",header:"",render:(lead)=><input aria-label={`Select ${lead.firstName} ${lead.lastName}`} type="checkbox" checked={selected.includes(lead.id)} onChange={(event)=>setSelected((current)=>event.target.checked ? [...current,lead.id] : current.filter((id)=>id !== lead.id))}/> },
         { key:"provider",header:"Provider",render:(lead)=><div><p className="font-semibold text-slate-900">{`${lead.firstName} ${lead.lastName}`.trim() || "Healthcare Provider"}</p><p className="text-xs text-slate-500">{lead.organization}</p></div> },
         { key:"email",header:"Email / Phone",render:(lead)=><div>{lead.email}<p className="text-xs text-slate-500">{lead.phone}</p></div> },
-        { key:"status",header:"Status",render:(lead)=>lead.status.replaceAll("_"," ") },
+        { key:"status",header:"Status",render:(lead)=>getLeadStageLabel(lead.status) },
         { key:"priority",header:"Priority",render:(lead)=>lead.priority },
         { key:"specialty",header:"Specialty",render:(lead)=>lead.specialty || "—" }
     ];
-    return <main className="min-h-screen bg-slate-50 p-6 md:p-8"><div className="mx-auto max-w-7xl"><div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-bold text-slate-900">{teamView?"Team Leads":companyView?"Company Leads":"My Leads"}</h1><p className="mt-1 text-slate-600">{teamView?"Provider opportunities assigned to your team.":companyView?"Company-wide provider opportunities.":"Your assigned provider opportunities."}</p></div><div className="flex overflow-hidden rounded-xl border bg-white"><select aria-label="Export scope" value={exportMode} onChange={(event)=>setExportMode(event.target.value as "selected"|"filtered"|"all")} className="border-r bg-white px-3 font-semibold text-slate-700 outline-none"><option value="selected">Selected Leads</option><option value="filtered">Filtered Leads</option>{roleId==="admin"&&<option value="all">All Leads</option>}</select><button type="button" onClick={exportCsv} className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-700"><Download size={17}/>Export</button></div></div>
-        <div className="mt-6 grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-4 xl:grid-cols-7"><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Search leads" className="rounded-xl border px-3 py-2"/><select aria-label="Owner" disabled className="rounded-xl border bg-slate-50 px-3 py-2"><option>{teamView?"Owner: Team":companyView?"Owner: All":"Owner: Me"}</option></select><select value={status} onChange={(event)=>setStatus(event.target.value)} className="rounded-xl border px-3 py-2"><option value="all">All statuses</option>{statuses.map((value)=><option key={value} value={value}>{value.replaceAll("_"," ")}</option>)}</select><select value={priority} onChange={(event)=>setPriority(event.target.value)} className="rounded-xl border px-3 py-2"><option value="all">All priorities</option>{priorities.map((value)=><option key={value}>{value}</option>)}</select><select value={specialty} onChange={(event)=>setSpecialty(event.target.value)} className="rounded-xl border px-3 py-2"><option value="all">All specialties</option>{specialties.map((value)=><option key={value}>{value}</option>)}</select><input type="date" aria-label="Created from" value={from} onChange={(event)=>setFrom(event.target.value)} className="rounded-xl border px-3 py-2"/><input type="date" aria-label="Created to" value={to} onChange={(event)=>setTo(event.target.value)} className="rounded-xl border px-3 py-2"/></div>
-        {canBulk && <div className="mt-4 grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-3"><div className="flex gap-2"><select value={bulkStatus} onChange={(event)=>setBulkStatus(event.target.value)} className="min-w-0 flex-1 rounded-xl border px-3"><option value="">Change status</option>{statuses.map((value)=><option key={value} value={value}>{value.replaceAll("_"," ")}</option>)}</select><button disabled={working} onClick={()=>bulkUpdate("status")} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Apply</button></div><div className="flex gap-2"><select value={bulkPriority} onChange={(event)=>setBulkPriority(event.target.value)} className="min-w-0 flex-1 rounded-xl border px-3"><option value="">Change priority</option>{priorities.map((value)=><option key={value}>{value}</option>)}</select><button disabled={working} onClick={()=>bulkUpdate("priority")} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Apply</button></div>{canAssign&&<div className="flex gap-2" onFocus={()=>void loadUsers()}><div className="min-w-0 flex-1"><UserSelect users={users} value={ownerId} onChange={setOwnerId} disabled={loadingUsers||working} placeholder={loadingUsers?"Loading salespeople...":users.length?"Select salesperson":"Load salespeople"}/></div><button disabled={working||loadingUsers||!ownerId} onClick={()=>bulkUpdate("owner")} className="rounded-xl bg-blue-600 px-4 py-2 text-white">{working?"Assigning...":"Assign"}</button></div>}</div>}
+    return <main className="min-h-screen bg-slate-50 p-6 md:p-8"><div className="mx-auto max-w-7xl"><div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-bold text-slate-900">{teamView?"Team Leads":companyView?"Company Leads":"My Leads"}</h1><p className="mt-1 text-slate-600">{teamView?"Provider opportunities assigned to your team.":companyView?"Company-wide provider opportunities.":"Your assigned provider opportunities."}</p></div><div className="flex flex-wrap items-center gap-3">{canDelete&&<button type="button" disabled={working||!selected.length} onClick={()=>void deleteSelected()} className="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 font-semibold text-red-600 disabled:opacity-40"><Trash2 size={17}/>Delete{selected.length?` (${selected.length})`:""}</button>}{canExport&&<div className="flex overflow-hidden rounded-xl border bg-white"><select aria-label="Export scope" value={exportMode} onChange={(event)=>setExportMode(event.target.value as "selected"|"filtered"|"all")} className="border-r bg-white px-3 font-semibold text-slate-700 outline-none"><option value="selected">Selected Leads</option><option value="filtered">Filtered Leads</option>{roleId==="admin"&&<option value="all">All Leads</option>}</select><button type="button" disabled={working} onClick={()=>void exportCsv()} className="flex items-center gap-2 px-4 py-3 font-semibold text-slate-700 disabled:opacity-40"><Download size={17}/>{working?"Working...":"Export"}</button></div>}</div></div>
+        <div className="mt-6 grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-4 xl:grid-cols-7"><input value={search} onChange={(event)=>setSearch(event.target.value)} placeholder="Search leads" className="rounded-xl border px-3 py-2"/><select aria-label="Owner" disabled className="rounded-xl border bg-slate-50 px-3 py-2"><option>{teamView?"Owner: Team":companyView?"Owner: All":"Owner: Me"}</option></select><select value={status} onChange={(event)=>setStatus(event.target.value)} className="rounded-xl border px-3 py-2"><option value="all">All statuses</option>{statuses.map((value)=><option key={value} value={value}>{getLeadStageLabel(value)}</option>)}</select><select value={priority} onChange={(event)=>setPriority(event.target.value)} className="rounded-xl border px-3 py-2"><option value="all">All priorities</option>{priorities.map((value)=><option key={value}>{value}</option>)}</select><select value={specialty} onChange={(event)=>setSpecialty(event.target.value)} className="rounded-xl border px-3 py-2"><option value="all">All specialties</option>{specialties.map((value)=><option key={value}>{value}</option>)}</select><input type="date" aria-label="Created from" value={from} onChange={(event)=>setFrom(event.target.value)} className="rounded-xl border px-3 py-2"/><input type="date" aria-label="Created to" value={to} onChange={(event)=>setTo(event.target.value)} className="rounded-xl border px-3 py-2"/></div>
+        {canBulk && <div className="mt-4 grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-3"><div className="flex gap-2"><select value={bulkStatus} onChange={(event)=>setBulkStatus(event.target.value)} className="min-w-0 flex-1 rounded-xl border px-3"><option value="">Change status</option>{statuses.map((value)=><option key={value} value={value}>{getLeadStageLabel(value)}</option>)}</select><button disabled={working} onClick={()=>bulkUpdate("status")} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Apply</button></div><div className="flex gap-2"><select value={bulkPriority} onChange={(event)=>setBulkPriority(event.target.value)} className="min-w-0 flex-1 rounded-xl border px-3"><option value="">Change priority</option>{priorities.map((value)=><option key={value}>{value}</option>)}</select><button disabled={working} onClick={()=>bulkUpdate("priority")} className="rounded-xl bg-slate-900 px-4 py-2 text-white">Apply</button></div>{canAssign&&<div className="flex gap-2" onFocus={()=>void loadUsers()}><div className="min-w-0 flex-1"><UserSelect users={users} value={ownerId} onChange={setOwnerId} disabled={loadingUsers||working} placeholder={loadingUsers?"Loading salespeople...":users.length?"Select salesperson":"Load salespeople"}/></div><button disabled={working||loadingUsers||!ownerId} onClick={()=>bulkUpdate("owner")} className="rounded-xl bg-blue-600 px-4 py-2 text-white">{working?"Assigning...":"Assign"}</button></div>}</div>}
         <div className="my-5">{error?<AsyncError message={error} onRetry={()=>void refresh()}/>:<FeedbackMessage message={feedback} tone={feedback.includes("successfully") ? "success" : "error"}/>}</div>{loading ? <p>Loading leads...</p> : <CRMTable rows={filtered} columns={columns} getRowKey={(lead)=>lead.id} emptyMessage="No assigned leads match these filters."/>}</div></main>;
 }

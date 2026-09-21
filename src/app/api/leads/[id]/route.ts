@@ -7,7 +7,8 @@ import {
     normalizePhone
 } from "@/lib/leadDuplicateDetection";
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentCRMUser } from "@/lib/apiAuth";
+import { getCurrentCRMUser,requirePermission } from "@/lib/apiAuth";
+import { DELETED_LEADS_COLLECTION,LEADS_COLLECTION } from "@/lib/crmCollections";
 import { canAccessLeadForUser } from "@/services/leadVisibilityService";
 import { recordActivity } from "@/services/activityService";
 import { createNotification } from "@/services/notificationService";
@@ -54,6 +55,71 @@ const scoringFields = new Set([
     "interestedService",
     "preferredContactMethod"
 ]);
+
+/**
+ * Removes a lead from the CRM.
+ *
+ * Deletion is a soft delete: the record moves to `crm_leads_deleted` rather
+ * than being destroyed, so a mistaken deletion is recoverable and the audit
+ * trail keeps something to point at. Requires the `leads.delete` permission,
+ * which no role holds until an administrator grants it.
+ */
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id:string }> }
+) {
+    const authResult = await requirePermission(request,"leads.delete");
+    if(!authResult.ok) return authResult.response;
+    const currentUser = authResult.user;
+
+    try {
+        const { id } = await params;
+        const reference = db.collection(LEADS_COLLECTION).doc(id);
+        const snapshot = await reference.get();
+
+        if(!snapshot.exists){
+            return NextResponse.json({ error:"Lead not found" },{ status:404 });
+        }
+
+        const lead = snapshot.data() ?? {};
+        if(!await canAccessLeadForUser(currentUser,lead,"update")){
+            return NextResponse.json(
+                { error:"You do not have permission to delete this lead" },
+                { status:403 }
+            );
+        }
+
+        await db.runTransaction(async(transaction)=>{
+            transaction.create(db.collection(DELETED_LEADS_COLLECTION).doc(id),{
+                ...lead,
+                deletedAt:new Date(),
+                deletedById:currentUser.uid,
+                deletedByName:currentUser.displayName
+            });
+            transaction.delete(reference);
+        });
+
+        await recordActivity({
+            actorId:currentUser.uid,
+            actorType:currentUser.authType === "service" ? "integration" : "user",
+            action:"lead.deleted",
+            entityType:"lead",
+            entityId:id,
+            metadata:{
+                organization:lead.organization ?? null,
+                email:lead.email ?? null,
+                status:lead.status ?? null,
+                recoverableFrom:DELETED_LEADS_COLLECTION
+            }
+        }).catch(()=>undefined);
+
+        return NextResponse.json({ success:true });
+    }
+    catch {
+        console.error("Lead deletion failed");
+        return NextResponse.json({ error:"Failed to delete lead" },{ status:500 });
+    }
+}
 
 export async function PATCH(
     request: NextRequest,
