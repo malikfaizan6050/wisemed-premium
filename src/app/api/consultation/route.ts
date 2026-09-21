@@ -1,5 +1,4 @@
-import { db } from "@/lib/firebase-admin";
-import { calculateLeadScore, getLeadPriority } from "@/lib/leadScoring";
+import { createPublicLead } from "@/services/leadIntakeService";
 import { NextResponse } from "next/server";
 
 interface RecaptchaResult {
@@ -56,7 +55,18 @@ export async function POST(request:Request) {
         const specialty = text(data.specialty);
 
         if(!firstName || !email || !organization || !specialty){
-            return NextResponse.json({ success:false },{ status:400 });
+            return NextResponse.json(
+                { success:false,error:"First name, email, organization and specialty are required." },
+                { status:400 }
+            );
+        }
+
+        // Explicit opt-in is required before we store contact details and call them back.
+        if(data.contactConsent !== true){
+            return NextResponse.json(
+                { success:false,error:"Please agree to be contacted before submitting." },
+                { status:400 }
+            );
         }
 
         const billingChallenges = Array.isArray(data.billingChallenges)
@@ -65,7 +75,8 @@ export async function POST(request:Request) {
             ).map((item) => item.trim()).filter(Boolean)
             : [];
         const claimsVolume = Math.max(0,Number(data.claimsVolume) || 0);
-        const scoringInput = {
+
+        const result = await createPublicLead({
             firstName,
             lastName:text(data.lastName),
             email,
@@ -77,26 +88,22 @@ export async function POST(request:Request) {
             currentBillingMethod:text(data.currentBillingMethod),
             ehrSystem:text(data.ehrSystem),
             message:text(data.message),
-            billingChallenges
-        };
-        const leadScore = calculateLeadScore(scoringInput);
-        const now = new Date();
-        const document = await db.collection("consultations").add({
-            ...scoringInput,
-            monthlyClaims:claimsVolume,
-            estimatedRevenue:0,
-            denialRate:0,
-            status:"new_inquiry",
-            priority:getLeadPriority(leadScore),
-            leadScore,
-            opportunityScore:leadScore,
-            assignedTo:null,
-            source:"website",
-            createdAt:now,
-            updatedAt:now
+            billingChallenges,
+            contactConsent:true,
+            source:"website"
         });
 
-        return NextResponse.json({ success:true,id:document.id });
+        if(!result.ok){
+            // Answer the visitor as if it succeeded. They did nothing wrong, and
+            // confirming which details already exist would leak the lead list.
+            console.info("[consultation] duplicate enquiry suppressed",{
+                duplicateId:result.duplicateId,
+                matchingFields:result.matchingFields
+            });
+            return NextResponse.json({ success:true,duplicate:true });
+        }
+
+        return NextResponse.json({ success:true,id:result.id });
     }
     catch {
         console.error("Consultation submission failed");
