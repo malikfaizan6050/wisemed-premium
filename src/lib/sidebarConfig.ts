@@ -7,6 +7,15 @@ const performanceLabels:Readonly<Record<SidebarRole,string>> = {
     default:"My Performance"
 };
 
+// The my-leads page titles itself by role, but the sidebar always said
+// "My Leads", so a manager saw one name in the menu and another on the page.
+const myLeadsLabels:Readonly<Record<SidebarRole,string>> = {
+    admin:"Company Leads",
+    sales_manager:"Team Leads",
+    salesperson:"My Leads",
+    default:"My Leads"
+};
+
 function normalizeRole(value:string):string {
     return value.trim().toLowerCase().replace(/[\s-]+/g,"_");
 }
@@ -20,6 +29,8 @@ function resolveSidebarRole(roleId:string,roleName:string):SidebarRole {
 }
 
 export function getSidebarLabel(defaultLabel:string,href:string,roleId:string,roleName:string):string {
-    if(href !== "/dashboard/my-performance") return defaultLabel;
-    return performanceLabels[resolveSidebarRole(roleId,roleName)];
+    const role=resolveSidebarRole(roleId,roleName);
+    if(href === "/dashboard/my-performance") return performanceLabels[role];
+    if(href === "/dashboard/my-leads") return myLeadsLabels[role];
+    return defaultLabel;
 }

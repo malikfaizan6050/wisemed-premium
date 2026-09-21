@@ -1,5 +1,6 @@
 import LegalPage from "@/components/LegalPage";
 import { createPageMetadata } from "@/lib/seo";
+import { contactEmail } from "@/lib/contact";
 
 export const metadata=createPageMetadata({
     title:"Terms of Use | WiseMedBilling",
@@ -38,7 +39,7 @@ const sections=[
     },
     {
         title:"Changes and contact",
-        paragraphs:["We may update these terms as the website, services, or legal requirements change. The date above identifies the latest published version. Questions about these terms may be sent to support@wisemedbilling.com."]
+        paragraphs:[`We may update these terms as the website, services, or legal requirements change. The date above identifies the latest published version. Questions about these terms may be sent to ${contactEmail}.`]
     }
 ];
 

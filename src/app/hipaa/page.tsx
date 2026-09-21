@@ -1,5 +1,6 @@
 import LegalPage from "@/components/LegalPage";
 import { createPageMetadata } from "@/lib/seo";
+import { contactEmail } from "@/lib/contact";
 
 export const metadata=createPageMetadata({
     title:"HIPAA-Focused Medical Billing & Secure RCM | WiseMedBilling",
@@ -30,7 +31,7 @@ const sections=[
     },
     {
         title:"Reporting a concern",
-        paragraphs:["If you believe sensitive healthcare information was submitted through an incorrect channel, or you need to report a privacy or security concern, stop further transmission and contact support@wisemedbilling.com promptly. Do not include additional patient information in the initial report."]
+        paragraphs:[`If you believe sensitive healthcare information was submitted through an incorrect channel, or you need to report a privacy or security concern, stop further transmission and contact ${contactEmail} promptly. Do not include additional patient information in the initial report.`]
     }
 ];
 

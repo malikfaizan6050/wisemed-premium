@@ -5,11 +5,11 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 
+// "Platform" was removed: it pointed at /solutions, the same page as
+// "Solutions", so the menu offered the same destination twice.
+// "Resources" is hidden until that section has real content rather than
+// promising material the site does not have.
 const links = [
-  {
-    name:"Platform",
-    href:"/solutions"
-  },
   {
     name:"Solutions",
     href:"/solutions"
@@ -19,8 +19,8 @@ const links = [
     href:"/services"
   },
   {
-    name:"Resources",
-    href:"/resources"
+    name:"About",
+    href:"/about"
   },
 ];
 

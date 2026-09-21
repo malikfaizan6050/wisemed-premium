@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
+import { contactEmail,contactPhoneE164 } from "@/lib/contact";
 
+// NOTE: this default is a Vercel preview URL, so canonical links, share
+// previews and the sitemap all publish under it unless NEXT_PUBLIC_SITE_URL is
+// set. It is also why the site's address does not match its wisemedbilling.com
+// email. Set NEXT_PUBLIC_SITE_URL to the live domain before launch.
 export const siteUrl=process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/,"")||"https://wisemed-premium-bdgf.vercel.app";
 export const siteName="WiseMedBilling";
 
@@ -56,9 +61,18 @@ export const organizationSchema={
     "@id":`${siteUrl}/#organization`,
     name:siteName,
     url:siteUrl,
-    email:"support@wisemedbilling.com",
+    email:contactEmail,
+    telephone:contactPhoneE164,
     description:"Healthcare revenue cycle management company helping medical practices improve billing performance, claims management, collections, and revenue optimization.",
     areaServed:{ "@type":"Country",name:"United States" },
+    contactPoint:{
+        "@type":"ContactPoint",
+        contactType:"customer support",
+        email:contactEmail,
+        telephone:contactPhoneE164,
+        areaServed:"US",
+        availableLanguage:"English"
+    },
     knowsAbout:["Medical billing","Claims management","Denial management","Payment posting","Insurance eligibility verification","Healthcare revenue analytics"]
 };
 

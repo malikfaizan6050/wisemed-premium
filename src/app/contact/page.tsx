@@ -2,6 +2,7 @@ import PublicPageShell,{ publicCardClass,SectionHeading } from "@/components/Pub
 import Link from "next/link";
 import { ArrowRight,Mail,Phone } from "lucide-react";
 import { createPageMetadata } from "@/lib/seo";
+import { contactEmail,contactEmailHref,contactPhoneDisplay,contactPhoneHref } from "@/lib/contact";
 
 export const metadata=createPageMetadata({
     title:"Contact a Medical Billing Company | WiseMedBilling",
@@ -16,17 +17,17 @@ export default function ContactPage(){
             <div className="mx-auto max-w-5xl">
                 <SectionHeading eyebrow="HOW TO REACH US" title="Our team is ready to help" description="Choose the contact option that best fits your needs. For patient privacy, do not send protected health information through general email."/>
                 <div className="grid gap-5 md:grid-cols-2">
-                    <a href="mailto:support@wisemedbilling.com" className={`${publicCardClass} group transition hover:-translate-y-1 hover:shadow-xl`}>
+                    <a href={contactEmailHref} className={`${publicCardClass} group transition hover:-translate-y-1 hover:shadow-xl`}>
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600"><Mail size={24}/></div>
                         <h2 className="mt-5 text-xl font-bold text-slate-900">Support email</h2>
                         <p className="mt-3 text-slate-600">For general questions and assistance</p>
-                        <p className="mt-4 font-semibold text-blue-600">support@wisemedbilling.com</p>
+                        <p className="mt-4 font-semibold text-blue-600">{contactEmail}</p>
                     </a>
-                    <a href="tel:+18005550199" className={`${publicCardClass} group transition hover:-translate-y-1 hover:shadow-xl`}>
+                    <a href={contactPhoneHref} className={`${publicCardClass} group transition hover:-translate-y-1 hover:shadow-xl`}>
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600"><Phone size={24}/></div>
                         <h2 className="mt-5 text-xl font-bold text-slate-900">Phone</h2>
                         <p className="mt-3 text-slate-600">Speak with the WiseMedBilling team</p>
-                        <p className="mt-4 font-semibold text-blue-600">+1 (800) 555-0199</p>
+                        <p className="mt-4 font-semibold text-blue-600">{contactPhoneDisplay}</p>
                     </a>
                 </div>
                 <div className="mt-6 rounded-[36px] bg-gradient-to-br from-blue-600 via-blue-500 to-blue-400 px-8 py-12 text-center shadow-[0_30px_80px_rgba(37,99,235,0.18)]">

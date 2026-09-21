@@ -1,5 +1,6 @@
 import LegalPage from "@/components/LegalPage";
 import { createPageMetadata } from "@/lib/seo";
+import { contactEmail } from "@/lib/contact";
 
 export const metadata=createPageMetadata({
     title:"Privacy Policy | WiseMedBilling",
@@ -43,7 +44,7 @@ const sections=[
     {
         title:"Retention, sharing, and your choices",
         paragraphs:["We retain information for as long as reasonably needed to respond to requests, provide services, meet legal or contractual obligations, resolve disputes, and maintain security. We do not sell consultation information. We may share information with authorized service providers, professional advisers, or authorities when required by law."],
-        items:["To request access, correction, or deletion where applicable, contact support@wisemedbilling.com."]
+        items:[`To request access, correction, or deletion where applicable, contact ${contactEmail}.`]
     }
 ];
 

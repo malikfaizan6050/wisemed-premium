@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import { contactEmail,contactEmailHref,contactPhoneDisplay,contactPhoneHref } from "@/lib/contact";
 
 const solutions = [
   { label:"Medical Billing",href:"/services#medical-billing" },
@@ -116,29 +117,29 @@ text-slate-600
 
 
 
-<div className="flex items-center gap-3">
+<a href={contactEmailHref} className="flex items-center gap-3 hover:text-blue-600">
 
 <Mail
 size={17}
 className="text-blue-600"
 />
 
-support@wisemedbilling.com
+{contactEmail}
 
-</div>
+</a>
 
 
 
-<div className="flex items-center gap-3">
+<a href={contactPhoneHref} className="flex items-center gap-3 hover:text-blue-600">
 
 <Phone
 size={17}
 className="text-blue-600"
 />
 
-+1 (800) 555-0199
+{contactPhoneDisplay}
 
-</div>
+</a>
 
 
 </div>

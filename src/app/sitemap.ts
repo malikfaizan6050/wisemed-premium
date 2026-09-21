@@ -6,7 +6,8 @@ const pages=[
     { path:"/services",changeFrequency:"monthly",priority:0.9 },
     { path:"/solutions",changeFrequency:"monthly",priority:0.9 },
     { path:"/about",changeFrequency:"monthly",priority:0.8 },
-    { path:"/resources",changeFrequency:"weekly",priority:0.8 },
+    // /resources is intentionally absent while the section is unfinished, so
+    // search engines are not pointed at a thin page.
     { path:"/contact",changeFrequency:"yearly",priority:0.7 },
     { path:"/hipaa",changeFrequency:"yearly",priority:0.5 },
     { path:"/privacy",changeFrequency:"yearly",priority:0.3 },
