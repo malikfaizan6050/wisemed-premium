@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
@@ -49,6 +50,10 @@ className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
 {children}
 
 </Providers>
+
+{/* Cookieless visitor tracking. Reports page views and traffic sources
+    without storing personal data, so no consent banner is required. */}
+<Analytics/>
 
 </body>
 
