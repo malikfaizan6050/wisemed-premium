@@ -4,7 +4,8 @@ import { db } from "@/lib/firebase-admin";
 import { createActivityRecord,listActivityRecords,type ActivityListOptions,type ActivityRecordInput } from "@/repositories/activityRepository";
 import { getUserById } from "@/repositories/userRepository";
 import { getRoleById } from "@/repositories/roleRepository";
-import type { CurrentCRMUser } from "@/types/crm-auth";
+import type { ActivityEvent,CurrentCRMUser } from "@/types/crm-auth";
+import { LEADS_COLLECTION } from "@/lib/crmCollections";
 import { hasPermission } from "@/lib/apiAuth";
 import { createNotification } from "@/services/notificationService";
 
@@ -20,11 +21,65 @@ export async function recordActivity(input:ActivityRecordInput) {
     return id;
 }
 
+// Non-human actors, labelled without a user lookup.
+const systemActorLabels:Record<string,string> = {
+    system:"System",
+    website:"Website enquiry",
+    "crm-service":"CRM integration"
+};
+
+/**
+ * Fills in who performed each action and which record it touched.
+ *
+ * The audit trail stores only `actorId` and `entityId`, so the timeline read
+ * "Lead · Updated" with no name attached and no way to tell which lead. Both
+ * are resolved here, once, so every caller gets an attributed trail.
+ */
+async function attachActorNames(activities:ActivityEvent[]):Promise<ActivityEvent[]> {
+    const actorIds = Array.from(new Set(
+        activities.map((activity)=>activity.actorId).filter((id)=>id && !(id in systemActorLabels))
+    ));
+    const leadIds = Array.from(new Set(
+        activities.filter((activity)=>activity.entityType === "lead" && activity.entityId).map((activity)=>activity.entityId)
+    ));
+
+    const actorNames = new Map<string,string>();
+    const leadNames = new Map<string,string>();
+
+    await Promise.all([
+        ...actorIds.map(async(id)=>{
+            const user = await getUserById(id).catch(()=>null);
+            if(user) actorNames.set(id,user.displayName || user.email || id);
+        }),
+        (async()=>{
+            if(leadIds.length === 0) return;
+            const references = leadIds.map((id)=>db.collection(LEADS_COLLECTION).doc(id));
+            const snapshots = await db.getAll(...references).catch(()=>[]);
+            snapshots.forEach((snapshot)=>{
+                if(!snapshot.exists) return;
+                const data = snapshot.data() ?? {};
+                const name = `${data.firstName ?? ""} ${data.lastName ?? ""}`.trim() ||
+                    String(data.organization ?? "") ||
+                    String(data.email ?? "");
+                if(name) leadNames.set(snapshot.id,name);
+            });
+        })()
+    ]);
+
+    return activities.map((activity)=>({
+        ...activity,
+        actorName:systemActorLabels[activity.actorId] ??
+            actorNames.get(activity.actorId) ??
+            (activity.actorId ? "Deleted user" : "System"),
+        entityLabel:activity.entityType === "lead" ? leadNames.get(activity.entityId) : undefined
+    }));
+}
+
 export async function getActivities(options:ActivityListOptions,viewer:CurrentCRMUser) {
-    if(hasPermission(viewer,"activities.read.all")) return listActivityRecords(options);
+    if(hasPermission(viewer,"activities.read.all")) return attachActorNames(await listActivityRecords(options));
     if(hasPermission(viewer,"activities.read.own")){
         if(options.actorId && options.actorId !== viewer.uid) throw new ActivityServiceError("You can only view your own activity",403);
-        return listActivityRecords({ ...options,actorId:viewer.uid });
+        return attachActorNames(await listActivityRecords({ ...options,actorId:viewer.uid }));
     }
     throw new ActivityServiceError("Insufficient permissions",403);
 }
@@ -36,10 +91,11 @@ export async function getEmployeePerformance(employeeId:string,viewer:CurrentCRM
     const employee = await getUserById(employeeId);
     if(!employee) throw new ActivityServiceError("Employee not found",404);
     const role = await getRoleById(employee.roleId);
-    const [leadSnapshot,recentActivities] = await Promise.all([
-        db.collection("crm_leads").where("ownerId","==",employeeId).limit(500).get(),
+    const [leadSnapshot,recentActivityRecords] = await Promise.all([
+        db.collection(LEADS_COLLECTION).where("ownerId","==",employeeId).limit(500).get(),
         listActivityRecords({ actorId:employeeId,limit:20 })
     ]);
+    const recentActivities = await attachActorNames(recentActivityRecords);
     const assignedLeads = leadSnapshot.size;
     const completedLeads = leadSnapshot.docs.filter((document)=>["active_client","lost"].includes(String(document.data().status ?? ""))).length;
     const pendingLeads = assignedLeads-completedLeads;

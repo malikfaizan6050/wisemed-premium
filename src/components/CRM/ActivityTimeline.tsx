@@ -11,7 +11,16 @@ export default function ActivityTimeline({ activities,emptyMessage="No activity 
         {activities.map((activity,index)=><li key={activity.id} className="relative flex gap-4 pb-6 last:pb-0">
             {index < activities.length-1 && <span className="absolute left-[7px] top-5 h-full w-px bg-slate-200"/>}
             <span className="relative mt-1 h-4 w-4 shrink-0 rounded-full border-4 border-blue-100 bg-blue-600"/>
-            <div><p className="font-semibold text-slate-900">{activityLabel(activity.action)}</p><p className="mt-1 text-sm text-slate-500">{activity.entityType} · {formatCRMDate(activity.createdAt)}</p></div>
+            <div>
+                <p className="font-semibold text-slate-900">{activityLabel(activity.action)}</p>
+                {/* Who and which record. Previously this line showed only the entity
+                    type and date, so the trail read "Lead · Updated" with no name. */}
+                <p className="mt-1 text-sm text-slate-700">
+                    <span className="font-medium">{activity.actorName ?? "System"}</span>
+                    {activity.entityLabel && <> · {activity.entityLabel}</>}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">{activity.entityType} · {formatCRMDate(activity.createdAt)}</p>
+            </div>
         </li>)}
     </ol>;
 }

@@ -46,8 +46,12 @@ export interface ActivityEvent {
     action:string;
     actorType:ActivityActorType;
     actorId:string;
+    /** Resolved display name for actorId. Set by the activity service on read. */
+    actorName?:string;
     entityType:string;
     entityId:string;
+    /** Human-readable name of the affected record, when it can be resolved. */
+    entityLabel?:string;
     metadata:Record<string,unknown>;
     createdAt:CRMDateValue;
 }
