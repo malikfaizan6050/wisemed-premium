@@ -7,7 +7,7 @@ import { getRoleById } from "@/repositories/roleRepository";
 import { activateInvitedUser } from "@/repositories/userRepository";
 import type { CRMUser,CurrentCRMUser,Permission,Role } from "@/types/crm-auth";
 import { NextResponse } from "next/server";
-import { canCreateLead,hasPermission as hasAssignedPermission } from "@/lib/permissions";
+import { resolvePermission } from "@/lib/permissions";
 
 type PermissionResult =
     | { ok:true; user:CurrentCRMUser }
@@ -149,9 +149,7 @@ export async function getCurrentCRMUser(request:Request):Promise<CurrentCRMUser 
 
 export function hasPermission(user:CurrentCRMUser,permission:Permission) {
     if(user.status !== "active") return false;
-    if(user.role.id === "admin") return true;
-    if(permission === "leads.create") return canCreateLead(user.role.id,user.permissions,user.role.name);
-    return hasAssignedPermission(user.permissions,permission);
+    return resolvePermission(user.role.id,user.role.name,user.permissions,permission);
 }
 
 export async function requirePermission(

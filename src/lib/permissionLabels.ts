@@ -8,6 +8,8 @@ const permissionLabels: Readonly<Record<string,string>> = {
     "leads.create":"Create Leads",
     "leads.update.all":"Update All Leads",
     "leads.update.owned":"Update Assigned Leads",
+    "leads.delete":"Delete Leads",
+    "leads.export":"Export Leads",
     "leads.assign":"Assign Leads",
     "activities.read.all":"View All Activities",
     "activities.read.own":"View Own Activities",

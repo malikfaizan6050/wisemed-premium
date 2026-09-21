@@ -3,7 +3,7 @@
 import { createContext,useCallback,useContext,useEffect,useMemo,useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { canCreateLead,hasPermission as userHasPermission,validatePermissions,type Permission } from "@/lib/permissions";
+import { resolvePermission,validatePermissions,type Permission } from "@/lib/permissions";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 interface CRMUserContextValue {
@@ -103,9 +103,10 @@ export function CRMUserProvider({ children }:{ children:React.ReactNode }) {
         }
     }),[]);
 
-    const hasPermission=useCallback((permission:Permission)=>roleId === "admin" ? true : permission === "leads.create"
-        ? canCreateLead(roleId,permissions,roleName)
-        : userHasPermission(permissions,permission),[permissions,roleId,roleName]);
+    const hasPermission=useCallback(
+        (permission:Permission)=>resolvePermission(roleId,roleName,permissions,permission),
+        [permissions,roleId,roleName]
+    );
     const reportAccessDenied=useCallback(()=>setAccessDeniedMessage("You do not have permission to access this page."),[]);
 
     const value = useMemo<CRMUserContextValue>(()=>({

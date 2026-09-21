@@ -4,6 +4,8 @@ export const CRM_PERMISSIONS = [
     "leads.create",
     "leads.update.all",
     "leads.update.owned",
+    "leads.delete",
+    "leads.export",
     "leads.assign",
     "users.assignable.read",
     "users.read",
@@ -53,4 +55,23 @@ export function canCreateLead(roleId:string | null | undefined,permissions:reado
     const normalizeRole=(value:string | null | undefined)=>value?.trim().toLowerCase().replaceAll(" ","_") ?? "";
     const restricted=[normalizeRole(roleId),normalizeRole(roleName)].some((role)=>leadCreationRestrictedRoles.has(role));
     return !restricted && permissions.includes("leads.create");
+}
+
+// Admin keeps these two regardless of its toggles. Every other permission,
+// admin included, is decided by the switches on the role screen. Without this
+// floor an admin could revoke roles.manage and lock every account out of the
+// only screen able to grant it back.
+export const ADMIN_RECOVERY_PERMISSIONS:readonly Permission[] = ["roles.read","roles.manage"];
+
+// The single authority for "can this role do this". Both the API and the CRM UI
+// call it so a hidden button and a 403 can never disagree.
+export function resolvePermission(
+    roleId:string | null | undefined,
+    roleName:string | null | undefined,
+    permissions:readonly Permission[],
+    permission:Permission
+):boolean {
+    if(roleId === "admin" && ADMIN_RECOVERY_PERMISSIONS.includes(permission)) return true;
+    if(permission === "leads.create") return canCreateLead(roleId,permissions,roleName);
+    return hasPermission(permissions,permission);
 }
