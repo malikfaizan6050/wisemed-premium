@@ -1,3 +1,5 @@
+import type { LeadStageKey } from "@/lib/leadStages";
+
 export interface Lead {
   id?: string;
 
@@ -24,12 +26,10 @@ export interface Lead {
     | "website"
     | "manual";
 
-  status:
-    | "new_inquiry"
-    | "qualified"
-    | "proposal_sent"
-    | "converted"
-    | "lost";
+  // Sourced from the shared stage list. This previously declared its own five
+  // stages, two of which (`qualified`, `converted`) existed on no screen, so a
+  // lead written with one was invisible everywhere.
+  status: LeadStageKey;
 
   leadScore: number;
 

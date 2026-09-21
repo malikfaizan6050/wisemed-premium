@@ -3,19 +3,24 @@
 
 import {
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   FileText,
   Handshake,
   Rocket,
   Search,
   Users,
-  XCircle
+  XCircle,
+  type LucideIcon
 } from "lucide-react";
 
 
 import {
   Lead
 } from "@/types/crm";
+
+
+import { LEAD_STAGES } from "@/lib/leadStages";
 
 
 
@@ -28,73 +33,44 @@ interface Props {
 
 
 
-const stages = [
+const stageIcons:Record<string,LucideIcon> = {
 
-{
-key:"new_inquiry",
-label:"New Inquiry",
-icon:Users,
-color:"blue"
-},
+new_inquiry:Users,
 
+initial_review:Search,
 
-{
-key:"initial_review",
-label:"Initial Review",
-icon:Search,
-color:"indigo"
-},
+discovery_scheduled:Clock,
 
+requirements_collected:FileText,
 
-{
-key:"discovery_scheduled",
-label:"Discovery",
-icon:Clock,
-color:"purple"
-},
+proposal_sent:Handshake,
+
+contract_review:ClipboardCheck,
+
+onboarding:Rocket,
+
+active_client:CheckCircle2,
+
+lost:XCircle
+
+};
 
 
-{
-key:"requirements_collected",
-label:"Requirements",
-icon:FileText,
-color:"cyan"
-},
 
+// Derived from the shared stage list. This board previously declared its own
+// copy that omitted `contract_review`, so leads in that stage were counted
+// nowhere and appeared to vanish from the pipeline.
+const stages = LEAD_STAGES.map((stage)=>({
 
-{
-key:"proposal_sent",
-label:"Proposal",
-icon:Handshake,
-color:"orange"
-},
+key:stage.key,
 
+label:stage.shortLabel,
 
-{
-key:"onboarding",
-label:"Onboarding",
-icon:Rocket,
-color:"green"
-},
+icon:stageIcons[stage.key] ?? Users,
 
+color:stage.color
 
-{
-key:"active_client",
-label:"Active Client",
-icon:CheckCircle2,
-color:"emerald"
-},
-
-
-{
-key:"lost",
-label:"Lost",
-icon:XCircle,
-color:"red"
-}
-
-
-];
+}));
 
 
 
@@ -124,6 +100,10 @@ cyan:
 
 orange:
 "bg-orange-50 text-orange-700 border-orange-200",
+
+
+amber:
+"bg-amber-50 text-amber-700 border-amber-200",
 
 
 green:
@@ -260,8 +240,8 @@ text-blue-700
 className="
 grid
 gap-4
-md:grid-cols-4
-lg:grid-cols-8
+md:grid-cols-3
+lg:grid-cols-9
 "
 
 >

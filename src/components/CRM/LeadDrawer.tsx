@@ -4,6 +4,7 @@ import { useEffect,useState } from "react";
 import { Mail,MessageCircle,Pencil,Phone,X } from "lucide-react";
 import type { Lead } from "@/types/crm";
 import { isLeadOverdue,toDateInputValue } from "@/lib/leadDates";
+import { LEAD_STAGE_OPTIONS } from "@/lib/leadStages";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import LeadDrawerDetails,{ LeadScoreCard } from "./LeadDrawerDetails";
 import LeadDrawerFollowUp,{ LeadNotes } from "./LeadDrawerFollowUp";
@@ -20,17 +21,7 @@ interface Props {
     onEdit?:(lead:Lead)=>void;
 }
 
-const pipelineOptions = [
-    ["new_inquiry","New Inquiry"],
-    ["initial_review","Initial Review"],
-    ["discovery_scheduled","Discovery Scheduled"],
-    ["requirements_collected","Requirements Collected"],
-    ["proposal_sent","Proposal Sent"],
-    ["contract_review","Contract Review"],
-    ["onboarding","Onboarding"],
-    ["active_client","Active Client"],
-    ["lost","Lost Opportunity"]
-] as const;
+const pipelineOptions = LEAD_STAGE_OPTIONS;
 
 const priorityOptions = [
     ["critical","Critical"],

@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { LEAD_STAGE_OPTIONS } from "@/lib/leadStages";
 
 export interface DashboardFilterValues {
     search:string; pipeline:string; assignee:string; source:string; specialty:string;
@@ -16,7 +17,7 @@ interface Props {
 export default function DashboardFilters({ values,assignees,sources,specialties,onChange }:Props) {
     return <div className="mt-12 flex flex-wrap gap-4">
         <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-xl border bg-white px-4"><Search size={20}/><input value={values.search} onChange={(event)=>onChange("search",event.target.value)} placeholder="Search providers, practices..." className="w-full py-3 outline-none"/></div>
-        <Filter value={values.pipeline} onChange={(value)=>onChange("pipeline",value)} options={[["all","All Pipeline"],["new_inquiry","New Inquiry"],["discovery_scheduled","Discovery Scheduled"],["proposal_sent","Proposal Sent"],["active_client","Active Client"]]}/>
+        <Filter value={values.pipeline} onChange={(value)=>onChange("pipeline",value)} options={[["all","All Pipeline"],...LEAD_STAGE_OPTIONS.map(([value,label]):[string,string]=>[value,label])]}/>
         <Filter value={values.assignee} onChange={(value)=>onChange("assignee",value)} options={[["all","All Assignees"],["unassigned","Unassigned"],...assignees.map((value):[string,string]=>[value,value])]}/>
         <Filter value={values.source} onChange={(value)=>onChange("source",value)} options={[["all","All Sources"],...sources.map((value):[string,string]=>[value,value.replaceAll("_"," ")])]}/>
         <Filter value={values.specialty} onChange={(value)=>onChange("specialty",value)} options={[["all","All Specialties"],...specialties.map((value):[string,string]=>[value,value])]}/>
