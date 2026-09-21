@@ -18,6 +18,8 @@ import {
 useGoogleReCaptcha
 } from "react-google-recaptcha-v3";
 
+import { track } from "@vercel/analytics";
+
 import {
 calculateLeadScore,
 getLeadPriority
@@ -44,6 +46,28 @@ ehrSystem:"",
 message:"",
 
 };
+
+
+
+// `required` drives both the asterisk shown to the visitor and the browser's own
+// validation. The server enforces the same four fields independently.
+const contactFields = [
+
+["firstName","First Name",true],
+
+["lastName","Last Name",false],
+
+["email","Email",true],
+
+["phone","Phone Number",false],
+
+["organization","Practice / Organization",true],
+
+["npi","NPI Number",false],
+
+["specialty","Medical Specialty",true]
+
+] as const;
 
 
 
@@ -75,6 +99,9 @@ export default function ConsultationForm(){
 
 
 const [formData,setFormData]=useState(initialForm);
+
+
+const [contactConsent,setContactConsent]=useState(false);
 
 
 const [selectedChallenges,setSelectedChallenges]
@@ -186,6 +213,10 @@ return "Practice organization is required";
 
 if(!formData.specialty)
 return "Medical specialty is required";
+
+
+if(!contactConsent)
+return "Please agree to be contacted before submitting";
 
 
 return "";
@@ -331,6 +362,9 @@ denialRate:0,
 source:"website",
 
 
+contactConsent,
+
+
 captchaToken,
 
 
@@ -347,10 +381,22 @@ throw new Error("Consultation submission failed");
 
 
 
+// Marks this visitor as converted, so traffic sources can be measured
+// against leads rather than page views alone.
+track("consultation_submitted",{
+specialty:formData.specialty,
+claimsVolume:formData.claimsVolume || "unspecified",
+leadPriority:priority
+});
+
+
 setSuccess(true);
 
 
 setFormData(initialForm);
+
+
+setContactConsent(false);
 
 
 setSelectedChallenges([]);
@@ -586,30 +632,33 @@ sm:grid-cols-2
 
 {
 
-[
+contactFields.map(([name,label,isRequired])=>(
 
-["firstName","First Name"],
 
-["lastName","Last Name"],
+<label key={name} className="flex flex-col gap-1">
 
-["email","Email"],
 
-["phone","Phone Number"],
+<span className="text-sm font-medium text-slate-700">
 
-["organization","Practice / Organization"],
+{label}
 
-["npi","NPI Number"],
+{
+isRequired &&
+<span className="ml-1 text-red-600" aria-hidden="true">*</span>
+}
 
-["specialty","Medical Specialty"]
-
-].map(([name,placeholder])=>(
+</span>
 
 
 <input
 
-key={name}
-
 name={name}
+
+type={name === "email" ? "email" : name === "phone" ? "tel" : "text"}
+
+required={isRequired}
+
+aria-required={isRequired}
 
 value={
 formData[
@@ -619,7 +668,7 @@ name as keyof typeof formData
 
 onChange={handleChange}
 
-placeholder={placeholder}
+placeholder={label}
 
 className="
 rounded-xl
@@ -632,6 +681,9 @@ focus:border-blue-600
 "
 
 />
+
+
+</label>
 
 
 ))
@@ -966,12 +1018,73 @@ focus:border-blue-600
 
 
 
+<label className="
+mt-6
+flex
+items-start
+gap-3
+rounded-xl
+bg-slate-50
+p-4
+text-sm
+text-slate-600
+cursor-pointer
+">
+
+
+<input
+
+type="checkbox"
+
+name="contactConsent"
+
+required
+
+aria-required="true"
+
+checked={contactConsent}
+
+onChange={(event)=>setContactConsent(event.target.checked)}
+
+className="mt-1 h-4 w-4 shrink-0"
+
+/>
+
+
+<span>
+
+I agree that WiseMedBilling may store the details above and contact me
+about my enquiry.
+{" "}
+<span className="text-red-600" aria-hidden="true">*</span>
+{" "}
+Please do not include patient information in this form.
+
+</span>
+
+
+</label>
+
+
+
+
+<p className="mt-4 text-xs text-slate-500">
+
+<span className="text-red-600" aria-hidden="true">*</span>
+{" "}
+Required field.
+
+</p>
+
+
+
+
 <button
 
 disabled={loading}
 
 className="
-mt-6
+mt-4
 w-full
 rounded-full
 bg-blue-600
