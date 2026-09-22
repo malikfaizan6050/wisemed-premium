@@ -1,8 +1,21 @@
+import { contactPhoneE164 } from "@/lib/contact";
+
 const defaultMessage="Hello WiseMedBilling team, I would like to know more about your services.";
 
+/**
+ * Builds the WhatsApp chat link.
+ *
+ * NEXT_PUBLIC_WHATSAPP_NUMBER overrides, so a dedicated WhatsApp line can be
+ * pointed at without a code change. It falls back to the business number
+ * rather than returning null, because NEXT_PUBLIC_* values are inlined at
+ * build time: the variable lives only in a gitignored .env.local, so every
+ * deployed build had no number and the button and the homepage WhatsApp
+ * section both rendered nothing, with no error to notice.
+ */
 export function getWhatsAppUrl(){
-    const phoneNumber=process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g,"");
-    return phoneNumber ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(defaultMessage)}` : null;
+    const configured=process.env.NEXT_PUBLIC_WHATSAPP_NUMBER?.replace(/\D/g,"");
+    const phoneNumber=configured || contactPhoneE164.replace(/\D/g,"");
+    return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(defaultMessage)}`;
 }
 
 export function WhatsAppIcon({ className="h-7 w-7" }:{ className?:string }){
@@ -13,7 +26,6 @@ export function WhatsAppIcon({ className="h-7 w-7" }:{ className?:string }){
 
 export default function WhatsAppButton(){
     const whatsappUrl=getWhatsAppUrl();
-    if(!whatsappUrl) return null;
 
     return <a
         href={whatsappUrl}

@@ -2,7 +2,6 @@ import { getWhatsAppUrl,WhatsAppIcon } from "@/components/WhatsAppButton";
 
 export default function WhatsAppSection(){
     const whatsappUrl=getWhatsAppUrl();
-    if(!whatsappUrl) return null;
 
     return <section className="px-6 py-12 lg:px-8">
         <div className="mx-auto max-w-5xl rounded-[26px] border border-white/80 bg-white/80 px-6 py-10 text-center shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl md:px-10 md:py-12">
