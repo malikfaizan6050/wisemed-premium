@@ -218,12 +218,13 @@ export async function PATCH(
             );
         }
 
-        if(entries.some(([field]) => ["email","phone","npi"].includes(field))){
+        if(entries.some(([field]) => ["email","phone","npi","organization"].includes(field))){
             const duplicate = await findDuplicateLead(
                 {
                     email:String(mergedLead.email ?? ""),
                     phone:String(mergedLead.phone ?? ""),
-                    npi:String(mergedLead.npi ?? "")
+                    npi:String(mergedLead.npi ?? ""),
+                    organization:String(mergedLead.organization ?? "")
                 },
                 id
             );

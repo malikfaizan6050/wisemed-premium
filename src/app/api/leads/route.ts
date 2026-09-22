@@ -225,7 +225,8 @@ export async function POST(request: NextRequest) {
         const duplicate = await findDuplicateLead({
             email:lead.email,
             phone:lead.phone,
-            npi:lead.npi
+            npi:lead.npi,
+            organization:lead.organization
         });
 
         if(duplicate){
