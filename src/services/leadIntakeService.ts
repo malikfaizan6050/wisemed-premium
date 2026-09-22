@@ -15,6 +15,7 @@ import { listRoles } from "@/repositories/roleRepository";
 import { hasPermission } from "@/lib/permissions";
 import { DEFAULT_LEAD_STAGE } from "@/lib/leadStages";
 import { LEADS_COLLECTION } from "@/lib/crmCollections";
+import { sendLeadArrivalEmailOnce,type LeadArrivalEmailInput } from "@/services/leadArrivalEmailService";
 
 export interface PublicLeadIntake {
     firstName:string;
@@ -42,7 +43,12 @@ export type LeadIntakeResult =
  * the public site has no owner yet and would otherwise sit unseen.
  * Never throws: a failed notification must not lose the lead itself.
  */
-async function notifyLeadWatchers(leadId:string,summary:string) {
+async function notifyLeadWatchers(
+    leadId:string,
+    summary:string,
+    lead:LeadArrivalEmailInput["lead"],
+    receivedAt:Date
+) {
     try {
         const roles = await listRoles();
         const watchingRoleIds = new Set(
@@ -53,19 +59,33 @@ async function notifyLeadWatchers(leadId:string,summary:string) {
         if(watchingRoleIds.size === 0) return;
 
         const users = await listUsers({ status:"active",limit:100 });
-        await Promise.all(
-            users
-                .filter((user)=>watchingRoleIds.has(user.roleId))
-                .map((user)=>createNotification({
-                    userId:user.uid,
-                    type:"lead.created",
-                    title:"New website enquiry",
-                    message:summary,
-                    entityType:"lead",
-                    entityId:leadId,
-                    leadId
-                }).catch(()=>undefined))
-        );
+        const watchers = users.filter((user)=>watchingRoleIds.has(user.roleId));
+
+        await Promise.all(watchers.map(async(user)=>{
+            const notification = await createNotification({
+                userId:user.uid,
+                type:"lead.created",
+                title:"New website enquiry",
+                message:summary,
+                entityType:"lead",
+                entityId:leadId,
+                leadId,
+                // Marks the notification as awaiting an email so the send can be
+                // claimed exactly once, matching how assignment emails work.
+                emailStatus:"pending"
+            }).catch(()=>null);
+
+            if(!notification || !user.email) return;
+
+            // Email is best-effort: an unconfigured or failing provider must not
+            // discard a lead that is already saved.
+            await sendLeadArrivalEmailOnce({
+                notificationId:notification.id,
+                recipient:{ email:user.email,displayName:user.displayName },
+                lead,
+                receivedAt
+            }).catch(()=>undefined);
+        }));
     }
     catch {
         // Swallowed deliberately; the lead is already saved.
@@ -85,7 +105,8 @@ export async function createPublicLead(input:PublicLeadIntake):Promise<LeadIntak
     const duplicate = await findDuplicateLead({
         email:input.email,
         phone:input.phone,
-        npi:input.npi
+        npi:input.npi,
+        organization:input.organization
     });
 
     if(duplicate){
@@ -151,7 +172,16 @@ export async function createPublicLead(input:PublicLeadIntake):Promise<LeadIntak
     }).catch(()=>undefined);
 
     const summary = `${input.firstName} ${input.lastName}`.trim() || input.organization || "A new lead";
-    await notifyLeadWatchers(document.id,summary);
+    await notifyLeadWatchers(document.id,summary,{
+        firstName:input.firstName,
+        lastName:input.lastName,
+        organization:input.organization,
+        specialty:input.specialty,
+        email:input.email,
+        phone:input.phone,
+        priority:storedLead.priority,
+        leadScore
+    },now);
 
     return { ok:true,id:document.id };
 }
