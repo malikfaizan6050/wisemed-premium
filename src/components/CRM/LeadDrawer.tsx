@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect,useState } from "react";
-import { Mail,MessageCircle,Pencil,Phone,X } from "lucide-react";
+import { Mail,MessageCircle,Pencil,Phone,Trash2,X } from "lucide-react";
 import type { Lead } from "@/types/crm";
 import { isLeadOverdue,toDateInputValue } from "@/lib/leadDates";
 import { LEAD_STAGE_OPTIONS } from "@/lib/leadStages";
@@ -32,6 +32,8 @@ const priorityOptions = [
 export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
     const { hasPermission } = useCRMUser();
     const canAssign = hasPermission("leads.assign");
+    const canDelete = hasPermission("leads.delete");
+    const [deleting,setDeleting] = useState(false);
     const [notes,setNotes] = useState(lead?.notes ?? "");
     const [saving,setSaving] = useState(false);
     const [assigning,setAssigning] = useState(false);
@@ -120,6 +122,34 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
         finally { setAssigning(false); }
     };
 
+    // Fire-and-forget: the call or email must open even if logging fails, so a
+    // logging error never blocks the user from contacting the lead.
+    const logContact = (channel:"call"|"email"|"whatsapp") => {
+        void authenticatedFetch(`/api/leads/${lead.id}/contact`,{
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body:JSON.stringify({ channel })
+        }).then(()=>onUpdated?.()).catch(()=>undefined);
+    };
+
+    const deleteLead = async() => {
+        if(!window.confirm(`Delete this lead? It can be restored by an administrator.`)) return;
+        setDeleting(true);
+        setFeedback({ message:"",tone:"error" });
+        try {
+            const response = await authenticatedFetch(`/api/leads/${lead.id}`,{ method:"DELETE" });
+            if(!response.ok){
+                const result:unknown = await response.json().catch(()=>null);
+                setFeedback({ message:getApiError(result,"Failed to delete lead"),tone:"error" });
+                return;
+            }
+            onUpdated?.();
+            onClose();
+        }
+        catch(error:unknown){ setFeedback({ message:error instanceof Error ? error.message : "Failed to delete lead",tone:"error" }); }
+        finally { setDeleting(false); }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
             <div className="absolute inset-0 bg-black/40" onClick={onClose}/>
@@ -130,10 +160,11 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
                 </div>
 
                 <div className="mt-4 flex flex-wrap justify-end gap-2">
-                    {lead.phone && <a href={`tel:${lead.phone}`} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Phone size={16}/>Call</a>}
-                    {lead.email && <a href={`mailto:${lead.email}`} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Mail size={16}/>Email</a>}
-                    {whatsappPhone && <a href={`https://wa.me/${whatsappPhone}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-50"><MessageCircle size={16}/>WhatsApp</a>}
+                    {lead.phone && <a href={`tel:${lead.phone}`} onClick={()=>logContact("call")} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Phone size={16}/>Call</a>}
+                    {lead.email && <a href={`mailto:${lead.email}`} onClick={()=>logContact("email")} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Mail size={16}/>Email</a>}
+                    {whatsappPhone && <a href={`https://wa.me/${whatsappPhone}`} onClick={()=>logContact("whatsapp")} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-50"><MessageCircle size={16}/>WhatsApp</a>}
                     <button type="button" onClick={()=>onEdit?.(lead)} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"><Pencil size={16}/>Edit Lead</button>
+                    {canDelete && <button type="button" onClick={()=>void deleteLead()} disabled={deleting} className="flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"><Trash2 size={16}/>{deleting?"Deleting...":"Delete"}</button>}
                 </div>
                 <div className="mt-4"><FeedbackMessage message={feedback.message} tone={feedback.tone}/></div>
 
