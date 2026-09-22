@@ -6,7 +6,11 @@ export const metadata=createPageMetadata({
     title:"Healthcare RCM Resources & Medical Billing Guides | WiseMedBilling",
     description:"Explore healthcare RCM resources, practical medical billing guides, secure information-sharing tips, and answers to common provider questions.",
     path:"/resources",
-    keywords:["healthcare RCM resources","medical billing guides","revenue cycle education","medical billing FAQ"]
+    keywords:["healthcare RCM resources","medical billing guides","revenue cycle education","medical billing FAQ"],
+    // Hidden from the menu and sitemap while the section is thin. noIndex keeps
+    // it out of search results too, so the page is reachable by direct link but
+    // is not presented as finished material. Remove once it has real content.
+    noIndex:true
 });
 
 const guides=[

@@ -22,9 +22,11 @@ interface PageSeo {
     description:string;
     path:string;
     keywords?:string[];
+    /** Keeps an unfinished page out of search results while it stays reachable. */
+    noIndex?:boolean;
 }
 
-export function createPageMetadata({ title,description,path,keywords=[] }:PageSeo):Metadata{
+export function createPageMetadata({ title,description,path,keywords=[],noIndex=false }:PageSeo):Metadata{
     const canonical=path==="/"?siteUrl:`${siteUrl}${path}`;
     return {
         metadataBase:new URL(siteUrl),
@@ -32,6 +34,7 @@ export function createPageMetadata({ title,description,path,keywords=[] }:PageSe
         description,
         keywords:[...sharedKeywords,...keywords],
         alternates:{ canonical },
+        ...(noIndex ? { robots:{ index:false,follow:true } } : {}),
         openGraph:{
             type:"website",
             locale:"en_US",
