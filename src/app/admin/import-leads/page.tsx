@@ -4,7 +4,10 @@ import { useCallback,useEffect,useMemo,useState } from "react";
 import { Download,FileSpreadsheet,Upload } from "lucide-react";
 import Papa from "papaparse";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
-import { emptyImportRecord,importLeadFields,splitFullName,suggestImportField } from "@/lib/crmImport";
+import {
+    cleanImportCell,correctWebsiteAddress,disambiguateHeaders,emptyImportRecord,
+    firstEmailIn,importLeadFields,splitFullName,suggestImportMapping
+} from "@/lib/crmImport";
 import CRMTable,{ type CRMTableColumn } from "@/components/CRM/CRMTable";
 import FeedbackMessage from "@/components/CRM/FeedbackMessage";
 import type { DuplicateStrategy,ImportHistoryEntry,ImportLeadField,ImportLeadRecord,ImportRowAnalysis } from "@/types/crm-import";
@@ -57,13 +60,30 @@ export default function ImportLeadsPage(){
         setStep("upload");setFileName("");setHeaders([]);setRows([]);setMapping({});setRecords([]);setAnalysis([]);setStrategy("skip");setMessage({ text:"",tone:"error" });
     };
 
-    const acceptRows=(name:string,parsedRows:SourceRow[])=>{
-        const cleanRows=parsedRows.filter((row)=>Object.values(row).some((value)=>String(value??"").trim()));
-        const discovered=Array.from(new Set(cleanRows.flatMap((row)=>Object.keys(row).map((header)=>header.trim())).filter(Boolean)));
-        if(!cleanRows.length||!discovered.length) throw new Error("The selected file does not contain any data rows.");
-        if(cleanRows.length>MAX_IMPORT_ROWS) throw new Error(`The selected file has ${cleanRows.length.toLocaleString()} rows. Split it into files of ${MAX_IMPORT_ROWS.toLocaleString()} rows or fewer.`);
-        setFileName(name);setHeaders(discovered);setRows(cleanRows);
-        setMapping(Object.fromEntries(discovered.map((header)=>[header,suggestImportField(header)])));
+    /**
+     * Takes the sheet exactly as it was kept and makes it importable.
+     *
+     * Rows arrive as arrays rather than objects so that two columns sharing a
+     * heading both survive; keying by heading lets the second overwrite the
+     * first and silently costs a whole column. Placeholder dashes and
+     * spreadsheet error values are read as empty here, so nobody has to tidy
+     * the file before uploading it.
+     */
+    const acceptGrid=(name:string,grid:unknown[][])=>{
+        const headerRow=(grid[0]??[]) as unknown[];
+        const named=disambiguateHeaders(headerRow.map((cell)=>cleanImportCell(cell)));
+        const dataRows=grid.slice(1)
+            .map((row)=>Object.fromEntries(named.map((header,index)=>[header,cleanImportCell((row as unknown[])[index])])) as SourceRow)
+            .filter((row)=>Object.values(row).some((value)=>String(value??"").trim()));
+
+        if(!dataRows.length||!named.length) throw new Error("The selected file does not contain any data rows.");
+        if(dataRows.length>MAX_IMPORT_ROWS) throw new Error(`The selected file has ${dataRows.length.toLocaleString()} rows. Split it into files of ${MAX_IMPORT_ROWS.toLocaleString()} rows or fewer.`);
+
+        // A column with no heading and nothing under it is a spreadsheet
+        // artefact, not data, and only clutters the mapping screen.
+        const used=named.filter((header)=>dataRows.some((row)=>String(row[header]??"").trim()));
+        setFileName(name);setHeaders(used);setRows(dataRows);
+        setMapping(suggestImportMapping(used));
         setStep("upload");setMessage({ text:"",tone:"error" });
     };
 
@@ -74,15 +94,18 @@ export default function ImportLeadsPage(){
             const extension=file.name.split(".").pop()?.toLowerCase();
             if(extension==="csv"){
                 const text=await file.text();
-                const parsed=Papa.parse<SourceRow>(text,{ header:true,skipEmptyLines:"greedy",transformHeader:(header)=>header.trim() });
+                const parsed=Papa.parse<string[]>(text,{ skipEmptyLines:"greedy" });
                 if(parsed.errors.length) throw new Error(parsed.errors[0].message);
-                acceptRows(file.name,parsed.data);
-            }else if(extension==="xlsx"){
+                acceptGrid(file.name,parsed.data);
+            }else if(extension==="xlsx"||extension==="xls"){
                 const XLSX=await import("xlsx");
                 const workbook=XLSX.read(await file.arrayBuffer(),{ type:"array",cellDates:false });
                 const sheet=workbook.Sheets[workbook.SheetNames[0]];
                 if(!sheet) throw new Error("The workbook does not contain a worksheet.");
-                acceptRows(file.name,XLSX.utils.sheet_to_json<SourceRow>(sheet,{ defval:"",raw:false }));
+                acceptGrid(file.name,XLSX.utils.sheet_to_json<unknown[]>(sheet,{ header:1,defval:"",raw:false,blankrows:false }));
+                if(workbook.SheetNames.length>1){
+                    setMessage({ text:`Reading the first worksheet, "${workbook.SheetNames[0]}". The other ${workbook.SheetNames.length-1} were ignored.`,tone:"error" });
+                }
             }else throw new Error("Choose a .csv or .xlsx file.");
         }catch(error){ setMessage({ text:error instanceof Error?error.message:"Unable to read the selected file.",tone:"error" }); }
         finally{ setLoading(false); }
@@ -93,9 +116,14 @@ export default function ImportLeadsPage(){
         for(const header of headers){
             const field=mapping[header];
             if(!field) continue;
-            const value=row[header];
-            record[field]=field==="monthlyClaims"||field==="monthlyCollections"?String(value??""):String(value??"").trim();
+            record[field]=cleanImportCell(row[header]);
         }
+        // Repairs that need to know which column is which, so they can only
+        // run once the mapping is settled.
+        record.email=firstEmailIn(record.email);
+        const corrected=correctWebsiteAddress(record.website,record.practiceLocation);
+        record.website=corrected.website;
+        record.practiceLocation=corrected.address;
         return record;
     });
 

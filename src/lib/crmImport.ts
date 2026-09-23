@@ -52,7 +52,8 @@ export const importLeadFields:readonly { value:ImportLeadField;label:string;alia
 const importLeadFieldValues = importLeadFields.map((field)=>field.value);
 
 export function normalizeImportHeader(value:string):string {
-    return value.trim().toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");
+    // The trailing "(2)" added to a repeated heading is not part of its name.
+    return value.trim().toLowerCase().replace(/\s*\(\d+\)$/,"").replace(/[_-]+/g," ").replace(/\s+/g," ");
 }
 
 export function suggestImportField(header:string):ImportLeadField | "" {
@@ -162,4 +163,108 @@ export function validateImportRecord(record:ImportLeadRecord):string[] {
         if(String(value).trim() && !Number.isFinite(Number(String(value).replace(/[$,\s]/g,"")))) errors.push(`${label} must be numeric`);
     }
     return errors;
+}
+
+// ---------------------------------------------------------------------------
+// Spreadsheet cleaning
+//
+// A calling list is kept by hand, so it arrives with placeholder dashes,
+// spreadsheet error values, two columns under one heading and the odd pair of
+// columns filled in the wrong order. All of it is repaired here, on the way
+// in, so the person uploading the file does not have to prepare it first.
+// ---------------------------------------------------------------------------
+
+/** What a hand-kept sheet writes when it means "nothing". */
+const importPlaceholders = new Set([
+    "","-","--","---","n/a","n.a.","na","none","null","nil","tbd",
+    "#name?","#value!","#ref!","#n/a","#div/0!","#null!","#num!"
+]);
+
+/** Trims a cell and reads the sheet's placeholders as empty. */
+export function cleanImportCell(value:unknown):string {
+    const text = String(value ?? "").replace(/\s+/g," ").trim();
+    return importPlaceholders.has(text.toLowerCase()) ? "" : text;
+}
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Takes the first usable address from a cell holding several.
+ *
+ * A contact cell often collects every address anyone found, separated by
+ * commas or spaces. Stored whole it is not a valid email and the lead cannot
+ * be written to.
+ */
+export function firstEmailIn(value:string):string {
+    return value.split(/[,;\s]+/).map((part)=>part.trim()).find((part)=>emailPattern.test(part)) ?? "";
+}
+
+export function looksLikeUrl(value:string):boolean {
+    return /^(https?:\/\/|www\.)/i.test(value) ||
+        /\.(com|net|org|edu|gov|us|io|co|health|care|clinic)(\/|$)/i.test(value);
+}
+
+export function looksLikeStreetAddress(value:string):boolean {
+    return /\d/.test(value) &&
+        /(st|street|ave|avenue|blvd|boulevard|rd|road|dr|drive|fwy|freeway|hwy|suite|ste|pkwy|parkway|place|pl|lane|ln|way|circle|cir|unit|bldg)/i.test(value);
+}
+
+/**
+ * Puts a website and an address back in their own columns.
+ *
+ * On a hand-kept sheet the two are transposed on scattered rows, which would
+ * otherwise store a street address as the practice's website and render it as
+ * a broken link.
+ */
+export function correctWebsiteAddress(website:string,address:string) {
+    const swap = Boolean(website) && !looksLikeUrl(website) && looksLikeStreetAddress(website) &&
+        (!address || looksLikeUrl(address));
+    return swap ? { website:address,address:website,swapped:true } : { website,address,swapped:false };
+}
+
+/**
+ * Gives every column a distinct name.
+ *
+ * A sheet may repeat a heading - two columns both called "Remarks" - and a
+ * parser that keys rows by heading lets the later column overwrite the
+ * earlier, losing a whole column with nothing to show for it. Columns with no
+ * heading keep their spreadsheet letter so data under them is still reachable.
+ */
+export function disambiguateHeaders(headers:readonly string[]):string[] {
+    const seen = new Map<string,number>();
+    return headers.map((header,index)=>{
+        const base = cleanImportCell(header) || `Column ${columnLetter(index)}`;
+        const count = (seen.get(base.toLowerCase()) ?? 0) + 1;
+        seen.set(base.toLowerCase(),count);
+        return count === 1 ? base : `${base} (${count})`;
+    });
+}
+
+function columnLetter(index:number):string {
+    let label = "";
+    for(let value = index;value >= 0;value = Math.floor(value/26)-1){
+        label = String.fromCharCode(65+(value%26))+label;
+    }
+    return label;
+}
+
+/**
+ * Guesses a field for every column, never handing two columns the same one.
+ *
+ * Two columns sharing a field means the second silently overwrites the first
+ * when the rows are built, so a repeated heading is left unmapped for the
+ * person to place rather than quietly discarded.
+ */
+export function suggestImportMapping(headers:readonly string[]):Record<string,ImportLeadField | ""> {
+    const taken = new Set<ImportLeadField>();
+    const mapping:Record<string,ImportLeadField | ""> = {};
+    for(const header of headers){
+        const suggestion = suggestImportField(header);
+        if(suggestion && !taken.has(suggestion)){
+            taken.add(suggestion);
+            mapping[header] = suggestion;
+        }
+        else mapping[header] = "";
+    }
+    return mapping;
 }

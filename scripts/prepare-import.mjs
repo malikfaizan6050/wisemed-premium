@@ -17,35 +17,21 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import * as XLSX from "xlsx";
-import { splitFullName } from "../src/lib/crmImport.ts";
+import {
+    cleanImportCell, correctWebsiteAddress, disambiguateHeaders, firstEmailIn, splitFullName
+} from "../src/lib/crmImport.ts";
 
+// Every repair below comes from src/lib/crmImport.ts, which is the same code
+// the upload screen runs. The screen now cleans a sheet on its own, so this
+// script is only needed to split a file past the importer's row limit or to
+// see the rejected rows before uploading.
 const MAX_ROWS = 2000;
 const source = process.argv[2];
 if (!source) {
     console.error("Usage: node scripts/prepare-import.mjs <path to .xlsx or .csv>");
     process.exit(1);
 }
-
-const EMPTY = new Set(["", "-", "--", "n/a", "na", "none", "#name?", "#value!", "#ref!", "#n/a", "null"]);
-const clean = (value) => {
-    const text = String(value ?? "").replace(/\s+/g, " ").trim();
-    return EMPTY.has(text.toLowerCase()) ? "" : text;
-};
-
-/** Keeps the first of several addresses crammed into one cell. */
-const firstEmail = (value) => {
-    const parts = clean(value).split(/[,;\s]+/);
-    return parts.find((part) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(part)) ?? "";
-};
-
-/** Keeps letters, so a vanity number like "281-491-KIDZ" stays visible. */
-const phone = (value) => clean(value);
-
-const looksLikeUrl = (value) =>
-    /^(https?:\/\/|www\.)/i.test(value) || /\.(com|net|org|us|io|health|care)\b/i.test(value);
-const looksLikeAddress = (value) =>
-    /\d/.test(value) &&
-    /\b(st|street|ave|avenue|blvd|boulevard|rd|road|dr|drive|fwy|freeway|suite|ste|pkwy|place|pl|lane|ln|way|circle|cir)\b/i.test(value);
+const clean = cleanImportCell;
 
 const workbook = XLSX.read(await readFile(source), { type: "buffer", cellDates: false });
 const sheetName = workbook.SheetNames[0];
@@ -64,7 +50,8 @@ if (grid.length < 2) {
     process.exit(1);
 }
 
-const headers = grid[0].map((cell) => clean(cell).toLowerCase());
+const namedHeaders = disambiguateHeaders(grid[0].map((cell) => clean(cell)));
+const headers = namedHeaders.map((header) => header.toLowerCase());
 const at = (...names) => {
     for (const name of names) {
         const index = headers.indexOf(name);
@@ -73,7 +60,9 @@ const at = (...names) => {
     return -1;
 };
 // The first "Remarks" is the general note; a second one is the call remark.
-const remarksColumns = headers.map((header, index) => (header === "remarks" ? index : -1)).filter((index) => index !== -1);
+const remarksColumns = headers
+    .map((header, index) => (header === "remarks" || /^remarks \(\d+\)$/.test(header) ? index : -1))
+    .filter((index) => index !== -1);
 
 const column = {
     ser: at("ser", "sr", "s no", "#"),
@@ -120,25 +109,20 @@ for (const row of grid.slice(1)) {
     const cell = (index) => (index === -1 ? "" : clean(row[index]));
     const { firstName, lastName } = splitFullName(cell(column.name));
 
-    let website = cell(column.website);
-    let address = cell(column.address);
-    // The two are interchanged on a number of rows.
-    if (website && !looksLikeUrl(website) && looksLikeAddress(website) && (!address || looksLikeUrl(address))) {
-        [website, address] = [address, website];
-        swappedWebsite++;
-    }
+    const corrected = correctWebsiteAddress(cell(column.website), cell(column.address));
+    if (corrected.swapped) swappedWebsite++;
 
     const record = {
         "Ser": cell(column.ser),
         "First Name": firstName,
         "Last Name": lastName,
         "Organization": cell(column.clinic),
-        "Email": firstEmail(cell(column.email)),
-        "Phone": phone(cell(column.phone1)),
-        "Phone 2": phone(cell(column.phone2)),
-        "Fax": phone(cell(column.fax)),
-        "Website": website,
-        "Address": address,
+        "Email": firstEmailIn(cell(column.email)),
+        "Phone": cell(column.phone1),
+        "Phone 2": cell(column.phone2),
+        "Fax": cell(column.fax),
+        "Website": corrected.website,
+        "Address": corrected.address,
         "Specialty": cell(column.specialist),
         "Call Status": cell(column.callStatus),
         "Date of Call": cell(column.callDate),
