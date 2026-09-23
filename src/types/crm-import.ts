@@ -1,16 +1,18 @@
-export type ImportLeadField="firstName"|"lastName"|"email"|"phone"|"organization"|"specialty"|"monthlyClaims"|"monthlyCollections";
+export type ImportLeadField=
+    |"fullName"|"firstName"|"lastName"
+    |"email"|"phone"|"alternatePhone"|"fax"|"website"
+    |"organization"|"specialty"|"practiceLocation"
+    |"monthlyClaims"|"monthlyCollections"
+    |"callStatus"|"callDate"|"callTime"|"callRemarks"
+    |"receptionistName"|"officeManagerName"
+    |"authorization"|"faxConfirmed"|"willDoctorJoin"
+    |"conversationSummary"|"nextAction"|"notes"|"sourceReference";
 export type DuplicateStrategy="skip"|"update"|"import";
 
-export interface ImportLeadRecord {
-    firstName:string;
-    lastName:string;
-    email:string;
-    phone:string;
-    organization:string;
-    specialty:string;
+export type ImportLeadRecord = Record<ImportLeadField,string> & {
     monthlyClaims:string | number;
     monthlyCollections:string | number;
-}
+};
 
 export interface ImportRowAnalysis {
     index:number;
@@ -30,5 +32,6 @@ export interface ImportHistoryEntry {
     successfulImports:number;
     failedImports:number;
     duplicateRecords:number;
+    skippedDuplicates?:number;
     createdAt:string | null;
 }

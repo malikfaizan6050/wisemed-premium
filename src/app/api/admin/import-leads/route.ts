@@ -4,7 +4,7 @@ import { db } from "@/lib/firebase-admin";
 import { requirePermission } from "@/lib/apiAuth";
 import { calculateLeadScore,getLeadPriority } from "@/lib/leadScoring";
 import { normalizeEmail,normalizeOrganization,normalizePhone } from "@/lib/leadDuplicateDetection";
-import { validateImportRecord } from "@/lib/crmImport";
+import { emptyImportRecord,importLeadFields,splitFullName,validateImportRecord } from "@/lib/crmImport";
 import type { DuplicateStrategy,ImportHistoryEntry,ImportLeadRecord,ImportRowAnalysis } from "@/types/crm-import";
 
 const MAX_IMPORT_ROWS=2000;
@@ -16,10 +16,25 @@ function numericValue(value:string|number):number {
 
 function sanitizeRecord(value:Record<string,unknown>):ImportLeadRecord {
     const text=(field:string)=>typeof value[field]==="string"||typeof value[field]==="number"?String(value[field]).trim():"";
-    return {
-        firstName:text("firstName"),lastName:text("lastName"),email:text("email"),phone:text("phone"),organization:text("organization"),specialty:text("specialty"),
-        monthlyClaims:text("monthlyClaims"),monthlyCollections:text("monthlyCollections")
-    };
+    // Built from the field list rather than written out, so adding a mappable
+    // column in one place is enough.
+    const record=emptyImportRecord();
+    for(const { value:field } of importLeadFields) record[field]=text(field);
+    return record;
+}
+
+/**
+ * Resolves the provider's name from whichever columns were mapped.
+ *
+ * A calling sheet usually has one combined "Dr Name" column; an exported CRM
+ * usually has two. Explicit first/last columns win when present, and the
+ * combined column is split only to fill what they leave empty.
+ */
+function resolveName(record:ImportLeadRecord) {
+    const split=splitFullName(record.fullName ?? "");
+    const firstName=record.firstName.trim()||split.firstName;
+    const lastName=record.lastName.trim()||split.lastName;
+    return { firstName,lastName };
 }
 
 async function authorize(request:Request){
@@ -93,11 +108,38 @@ async function analyze(records:ImportLeadRecord[]):Promise<ImportRowAnalysis[]> 
 function storedLead(record:ImportLeadRecord,userId:string){
     const monthlyClaims=numericValue(record.monthlyClaims);
     const monthlyCollections=numericValue(record.monthlyCollections);
+    const { firstName,lastName }=resolveName(record);
     const base={
-        firstName:record.firstName.trim(),lastName:record.lastName.trim(),email:record.email.trim(),phone:record.phone.trim(),
+        firstName,lastName,email:record.email.trim(),phone:record.phone.trim(),
         organization:record.organization.trim(),specialty:record.specialty.trim(),monthlyClaims,claimsVolume:monthlyClaims,
         monthlyCollections,estimatedRevenue:monthlyCollections,status:"new_inquiry",source:"import",createdBy:userId,createdById:userId,
-        assignedTo:null,ownerId:null,ownerSnapshot:null,assignedById:null,assignedAt:null,activity:[],notes:"",nextAction:"Review imported provider lead",
+        assignedTo:null,ownerId:null,ownerSnapshot:null,assignedById:null,assignedAt:null,activity:[],
+        notes:record.notes.trim(),
+        nextAction:record.nextAction.trim()||"Review imported provider lead",
+        dueDate:null,
+
+        // Practice and contact routes beyond the primary line.
+        practiceLocation:record.practiceLocation.trim(),
+        alternatePhone:record.alternatePhone.trim(),
+        fax:record.fax.trim(),
+        website:record.website.trim(),
+        conversationSummary:record.conversationSummary.trim(),
+
+        // Call-desk history. Dates and times are stored exactly as the sheet
+        // wrote them: a spreadsheet exports them as locale-formatted text, so
+        // "05/06/2026" is May or June depending on where the file was made.
+        // Guessing would silently corrupt the history, so it is kept verbatim.
+        callStatus:record.callStatus.trim(),
+        callDate:record.callDate.trim(),
+        callTime:record.callTime.trim(),
+        callRemarks:record.callRemarks.trim(),
+        receptionistName:record.receptionistName.trim(),
+        officeManagerName:record.officeManagerName.trim(),
+        authorization:record.authorization.trim(),
+        faxConfirmed:record.faxConfirmed.trim(),
+        willDoctorJoin:record.willDoctorJoin.trim(),
+        sourceReference:record.sourceReference.trim(),
+
         emailNormalized:normalizeEmail(record.email),phoneNormalized:normalizePhone(record.phone),
         npiNormalized:"",organizationNormalized:normalizeOrganization(record.organization)
     };
@@ -148,11 +190,16 @@ export async function POST(request:Request){
             if(row.duplicate&&strategy==="skip"){ skippedDuplicates++;continue; }
             const lead=storedLead(records[row.index],authorization.user.uid);
             if(row.duplicate&&strategy==="update"&&row.duplicateId){
+                // Everything the importer can supply is refreshed. Ownership,
+                // pipeline status and created-at are deliberately absent: an
+                // update must not reset a lead someone is already working.
+                const { status:_status,source:_source,createdBy:_createdBy,createdById:_createdById,
+                    assignedTo:_assignedTo,ownerId:_ownerId,ownerSnapshot:_ownerSnapshot,assignedById:_assignedById,
+                    assignedAt:_assignedAt,activity:_activity,dueDate:_dueDate,...refreshable }=lead;
+                void _status;void _source;void _createdBy;void _createdById;void _assignedTo;void _ownerId;
+                void _ownerSnapshot;void _assignedById;void _assignedAt;void _activity;void _dueDate;
                 writes.push(writer.update(db.collection("crm_leads").doc(row.duplicateId),{
-                    firstName:lead.firstName,lastName:lead.lastName,email:lead.email,phone:lead.phone,organization:lead.organization,specialty:lead.specialty,
-                    monthlyClaims:lead.monthlyClaims,claimsVolume:lead.claimsVolume,monthlyCollections:lead.monthlyCollections,estimatedRevenue:lead.estimatedRevenue,
-                    emailNormalized:lead.emailNormalized,phoneNormalized:lead.phoneNormalized,organizationNormalized:lead.organizationNormalized,
-                    leadScore:lead.leadScore,opportunityScore:lead.opportunityScore,priority:lead.priority,source:"import",updatedAt:FieldValue.serverTimestamp(),updatedById:authorization.user.uid
+                    ...refreshable,source:"import",updatedAt:FieldValue.serverTimestamp(),updatedById:authorization.user.uid
                 }));
             }else if(row.duplicate&&strategy==="update"){
                 skippedDuplicates++;continue;

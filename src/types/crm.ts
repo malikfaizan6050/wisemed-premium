@@ -29,6 +29,50 @@ export interface Lead {
     providerCount?: number;
 
 
+    // Secondary contact routes. A clinic call list carries these as often as
+    // it carries the main line.
+
+    alternatePhone?: string;
+
+    fax?: string;
+
+    website?: string;
+
+
+
+    // ==========================
+    // Outreach / Call Desk
+    // ==========================
+    //
+    // Populated by the lead importer from a calling list. These describe the
+    // progress of an outbound call campaign, which is separate from the sales
+    // pipeline `status` below: a lead can be "Voicemail" here while still
+    // sitting in New Inquiry.
+
+    /** Free text exactly as the calling sheet recorded it. */
+    callStatus?: string;
+
+    /** Date and time of the call, kept as written. See the importer for why. */
+    callDate?: string;
+
+    callTime?: string;
+
+    callRemarks?: string;
+
+    receptionistName?: string;
+
+    officeManagerName?: string;
+
+    authorization?: string;
+
+    faxConfirmed?: string;
+
+    willDoctorJoin?: string;
+
+    /** The row identifier from the source sheet, for reconciliation. */
+    sourceReference?: string;
+
+
 
     // ==========================
     // RCM Business Information

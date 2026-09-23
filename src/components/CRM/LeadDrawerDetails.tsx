@@ -1,4 +1,4 @@
-import { Activity,Building2,ClipboardCheck,FileText,Mail,Phone,TrendingUp,User } from "lucide-react";
+import { Activity,Building2,ClipboardCheck,FileText,Mail,MapPin,Phone,PhoneCall,Printer,TrendingUp,User } from "lucide-react";
 import type { Lead } from "@/types/crm";
 
 function SectionTitle({ children,icon:Icon }:{ children:React.ReactNode; icon:typeof User }) {
@@ -42,8 +42,14 @@ export default function LeadDrawerDetails({ lead }:{ lead:Lead }) {
                     <div className="flex items-center gap-3 text-sm text-slate-700"><ClipboardCheck size={17}/>Specialty: {lead.specialty || "Not provided"}</div>
                     <div className="flex items-center gap-3 text-sm text-slate-700"><User size={17}/>Providers: {lead.providerCount ?? "Not provided"}</div>
                     <div className="flex items-center gap-3 text-sm text-slate-700"><Building2 size={17}/>Practice Size: {lead.practiceSize || "Not provided"}</div>
+                    {lead.alternatePhone && <div className="flex items-center gap-3 text-sm text-slate-700"><Phone size={17}/>Alt phone: {lead.alternatePhone}</div>}
+                    {lead.fax && <div className="flex items-center gap-3 text-sm text-slate-700"><Printer size={17}/>Fax: {lead.fax}{lead.faxConfirmed ? ` (${lead.faxConfirmed})` : ""}</div>}
+                    {lead.website && <div className="flex items-center gap-3 text-sm text-slate-700"><Building2 size={17}/><a href={normalizeWebsite(lead.website)} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{lead.website}</a></div>}
+                    {lead.practiceLocation && <div className="flex items-start gap-3 text-sm text-slate-700"><MapPin size={17} className="mt-0.5 shrink-0"/>{lead.practiceLocation}</div>}
                 </div>
             </div>
+
+            <CallDeskSection lead={lead}/>
 
             <div className="mt-8">
                 <SectionTitle icon={Activity}>Practice Intelligence</SectionTitle>
@@ -67,6 +73,40 @@ export default function LeadDrawerDetails({ lead }:{ lead:Lead }) {
             <div className="mt-8"><SectionTitle icon={Mail}>AI Conversation Summary</SectionTitle><div className="rounded-3xl bg-slate-50 p-5 text-sm leading-relaxed text-slate-700">{conversation}</div></div>
         </>
     );
+}
+
+/**
+ * The outbound-call history a lead was imported with.
+ *
+ * Hidden entirely when a lead carries none of it, so an inbound website
+ * enquiry does not grow a block of empty rows.
+ */
+function CallDeskSection({ lead }:{ lead:Lead }) {
+    const entries:Array<[string,string | undefined]> = [
+        ["Call Status",lead.callStatus],
+        ["Date of Call",[lead.callDate,lead.callTime].filter(Boolean).join(" ")],
+        ["Receptionist",lead.receptionistName],
+        ["Office Manager",lead.officeManagerName],
+        ["Authorization",lead.authorization],
+        ["Will Doctor Join?",lead.willDoctorJoin],
+        ["Call Remarks",lead.callRemarks],
+        ["Sheet Reference",lead.sourceReference]
+    ];
+    const present = entries.filter((entry):entry is [string,string]=>Boolean(entry[1]?.trim()));
+    if(present.length === 0) return null;
+
+    return <div className="mt-8">
+        <SectionTitle icon={PhoneCall}>Call History</SectionTitle>
+        <div className="grid gap-4 rounded-3xl bg-slate-50 p-5 sm:grid-cols-2">
+            {present.map(([label,value])=><Detail key={label} label={label} value={value}/>)}
+        </div>
+    </div>;
+}
+
+// A sheet records a site as "example.com" as often as with a scheme, and a
+// bare value would otherwise resolve against the CRM's own origin.
+function normalizeWebsite(value:string) {
+    return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
 function Detail({ label,value }:{ label:string; value:string }) {
