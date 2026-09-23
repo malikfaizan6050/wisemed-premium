@@ -42,3 +42,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local lead backups written by scripts/purge-leads.mjs. May contain
+# real contact details, so never commit them.
+lead-backups/
