@@ -52,10 +52,12 @@ max-w-[1400px]
 grid-cols-1
 items-center
 gap-6
-px-8
-pt-16
-pb-16
-grid-cols-1
+px-5
+pt-28
+pb-12
+sm:px-8
+sm:pt-32
+sm:pb-16
 lg:grid-cols-2
 "
 >
@@ -89,19 +91,25 @@ duration:.8
 <h1
 className="
 mt-7
-text-5xl
+text-3xl
 font-semibold
-leading-[1.05]
+leading-[1.15]
 tracking-tight
 text-slate-900
+sm:text-4xl
+sm:leading-[1.05]
+md:text-5xl
 lg:text-6xl
 "
 >
 
 Your Trusted Partner
 
-<br/>
-
+{/* The forced breaks are for the desktop composition. On a phone they
+    fought the natural wrapping and left single words stranded on their
+    own lines, so the text wraps freely below the sm breakpoint. */}
+<br className="hidden sm:inline"/>
+{" "}
 
 <span
 className="
@@ -111,8 +119,8 @@ text-blue-600
 in Healthcare Revenue
 </span>
 
-
-<br/>
+<br className="hidden sm:inline"/>
+{" "}
 
 Cycle Management
 

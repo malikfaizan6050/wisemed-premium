@@ -447,7 +447,8 @@ bg-gradient-to-br
 from-blue-50
 via-white
 to-blue-100
-py-24
+py-14
+sm:py-24
 "
 
 >
@@ -459,8 +460,10 @@ className="
 mx-auto
 grid
 max-w-7xl
-gap-14
-px-6
+gap-10
+px-5
+sm:gap-14
+sm:px-6
 lg:grid-cols-2
 lg:px-8
 "
@@ -508,10 +511,12 @@ REQUEST RCM ASSESSMENT
 
 <h1 className="
 mt-6
-text-5xl
+text-3xl
 font-bold
 leading-tight
 text-slate-900
+sm:text-4xl
+lg:text-5xl
 ">
 
 Optimize Your Healthcare Revenue Cycle
@@ -611,10 +616,12 @@ duration:.7
 
 
 className="
-rounded-[32px]
+rounded-3xl
 bg-white
-p-8
+p-5
 shadow-xl
+sm:rounded-4xl
+sm:p-8
 "
 
 >

@@ -27,12 +27,15 @@ export function WhatsAppIcon({ className="h-7 w-7" }:{ className?:string }){
 export default function WhatsAppButton(){
     const whatsappUrl=getWhatsAppUrl();
 
+    // The offset uses the safe-area inset so the button clears the iOS home
+    // indicator and Safari's floating toolbar rather than sitting beneath them.
     return <a
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat with WiseMedBilling on WhatsApp"
-        className="fixed bottom-24 right-5 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_20px_50px_rgba(37,211,102,0.35)] transition duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-[#20bd5a] hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-green-200 sm:right-8 sm:h-16 sm:w-16"
+        style={{ bottom:"calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}
+        className="fixed right-4 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_20px_50px_rgba(37,211,102,0.35)] transition duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-[#20bd5a] hover:shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-green-200 sm:right-8 sm:h-16 sm:w-16"
     >
         <WhatsAppIcon className="h-8 w-8 sm:h-9 sm:w-9"/>
     </a>;
