@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# The template carries names only, never values, and the README tells new
+# developers to copy it.
+!.env.local.example
 
 # vercel
 .vercel

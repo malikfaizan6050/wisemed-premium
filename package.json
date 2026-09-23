@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "typecheck": "tsc --noEmit",
+    "test": "node scripts/test-crm-auth.cjs",
     "start": "next start",
     "lint": "eslint"
   },
