@@ -72,6 +72,23 @@ html {
 
   scroll-behavior:smooth;
 
+  /* A single element wider than the screen makes mobile Safari widen the
+     layout and shrink the whole page, which reads as the site being
+     "collapsed". Several decorative blur circles are deliberately oversized,
+     so clip sideways overflow here rather than relying on every section to
+     contain its own. Vertical scrolling is unaffected. */
+  overflow-x:hidden;
+
+  /* Stops iOS enlarging text in landscape and breaking the layout. */
+  -webkit-text-size-adjust:100%;
+
+}
+
+
+body {
+
+  overflow-x:hidden;
+
 }
 
 

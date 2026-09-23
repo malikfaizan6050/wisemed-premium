@@ -334,12 +334,18 @@ duration:1
 
 className="
 relative
-h-[560px]
-overflow-visible
+h-[340px]
+overflow-hidden
+sm:h-[460px]
+lg:h-[560px]
+lg:overflow-visible
 "
 
 >
 
+{/* The artwork is composed to spill past this box on desktop, which is
+    why overflow is visible there. On smaller screens that spill runs off
+    the side of the phone, so it is clipped and the box is shorter. */}
 <DoctorHero />
 
 

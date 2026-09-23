@@ -13,18 +13,24 @@ return (
 
 {/* Faded Healthcare Text */}
 
+{/* Purely decorative. Hidden on phones, where a 150px word overlapped the
+    real content and added nothing but noise. */}
 <div
 className="
 absolute
 top-20
-right-[-100px]
-text-[150px]
+hidden
+right-[-60px]
+text-[90px]
 font-black
 tracking-tight
 text-blue-100
 opacity-30
 select-none
 z-0
+sm:block
+lg:right-[-100px]
+lg:text-[150px]
 "
 >
 
@@ -96,15 +102,25 @@ duration:1
 className="
 absolute
 
-bottom-[-70px]
+bottom-0
 
-right-[-70px]
+inset-x-0
 
-h-[900px]
+h-full
 
-w-[700px]
+w-full
 
 z-10
+
+lg:inset-x-auto
+
+lg:bottom-[-70px]
+
+lg:right-[-70px]
+
+lg:h-[900px]
+
+lg:w-[700px]
 "
 
 >
@@ -120,7 +136,7 @@ fill
 
 priority
 
-sizes="600px"
+sizes="(max-width: 1024px) 100vw, 700px"
 
 className="
 object-contain
@@ -164,23 +180,37 @@ delay:.4
 className="
 absolute
 
-right-14
+right-2
 
-top-20
+top-3
 
 z-20
 
-rounded-[28px]
+rounded-2xl
 
 bg-white/75
 
 backdrop-blur-xl
 
-px-6
+px-3
 
-py-4
+py-2
 
 shadow-[0_25px_60px_rgba(0,0,0,0.08)]
+
+sm:right-8
+
+sm:top-12
+
+sm:rounded-[28px]
+
+sm:px-6
+
+sm:py-4
+
+lg:right-14
+
+lg:top-20
 
 "
 
@@ -189,8 +219,9 @@ shadow-[0_25px_60px_rgba(0,0,0,0.08)]
 
 <p
 className="
-text-sm
+text-[11px]
 text-slate-500
+sm:text-sm
 "
 >
 
@@ -201,9 +232,10 @@ Healthcare Revenue
 
 <h3
 className="
-text-2xl
+text-base
 font-bold
 text-blue-600
+sm:text-2xl
 "
 >
 
@@ -215,9 +247,10 @@ RCM Experts
 
 <p
 className="
-text-sm
+text-[11px]
 font-medium
 text-green-600
+sm:text-sm
 "
 >
 
@@ -263,21 +296,31 @@ absolute
 
 left-2
 
-bottom-32
+bottom-3
 
 z-20
 
-rounded-[28px]
+rounded-2xl
 
 bg-white/75
 
 backdrop-blur-xl
 
-px-5
+px-3
 
-py-4
+py-2
 
 shadow-[0_25px_60px_rgba(0,0,0,0.08)]
+
+sm:bottom-16
+
+sm:rounded-[28px]
+
+sm:px-5
+
+sm:py-4
+
+lg:bottom-32
 
 "
 
@@ -286,8 +329,9 @@ shadow-[0_25px_60px_rgba(0,0,0,0.08)]
 
 <p
 className="
-text-sm
+text-[11px]
 text-slate-500
+sm:text-sm
 "
 >
 
@@ -298,9 +342,10 @@ Insurance Claims
 
 <h3
 className="
-text-4xl
+text-xl
 font-bold
 text-slate-900
+sm:text-4xl
 "
 >
 
@@ -312,9 +357,10 @@ text-slate-900
 
 <p
 className="
-text-sm
+text-[11px]
 font-medium
 text-green-600
+sm:text-sm
 "
 >
 
