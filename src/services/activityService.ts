@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/lib/firebase-admin";
 import { createActivityRecord,listActivityRecords,type ActivityListOptions,type ActivityRecordInput } from "@/repositories/activityRepository";
 import { getUserById } from "@/repositories/userRepository";
+import { actorDisplayName,resolveActorNames } from "@/services/actorNameService";
 import { getRoleById } from "@/repositories/roleRepository";
 import type { ActivityEvent,CurrentCRMUser } from "@/types/crm-auth";
 import { LEADS_COLLECTION } from "@/lib/crmCollections";
@@ -21,13 +22,6 @@ export async function recordActivity(input:ActivityRecordInput) {
     return id;
 }
 
-// Non-human actors, labelled without a user lookup.
-const systemActorLabels:Record<string,string> = {
-    system:"System",
-    website:"Website enquiry",
-    "crm-service":"CRM integration"
-};
-
 /**
  * Fills in who performed each action and which record it touched.
  *
@@ -36,21 +30,14 @@ const systemActorLabels:Record<string,string> = {
  * are resolved here, once, so every caller gets an attributed trail.
  */
 async function attachActorNames(activities:ActivityEvent[]):Promise<ActivityEvent[]> {
-    const actorIds = Array.from(new Set(
-        activities.map((activity)=>activity.actorId).filter((id)=>id && !(id in systemActorLabels))
-    ));
     const leadIds = Array.from(new Set(
         activities.filter((activity)=>activity.entityType === "lead" && activity.entityId).map((activity)=>activity.entityId)
     ));
 
-    const actorNames = new Map<string,string>();
     const leadNames = new Map<string,string>();
 
-    await Promise.all([
-        ...actorIds.map(async(id)=>{
-            const user = await getUserById(id).catch(()=>null);
-            if(user) actorNames.set(id,user.displayName || user.email || id);
-        }),
+    const [actorNames] = await Promise.all([
+        resolveActorNames(activities.map((activity)=>activity.actorId)),
         (async()=>{
             if(leadIds.length === 0) return;
             const references = leadIds.map((id)=>db.collection(LEADS_COLLECTION).doc(id));
@@ -68,9 +55,7 @@ async function attachActorNames(activities:ActivityEvent[]):Promise<ActivityEven
 
     return activities.map((activity)=>({
         ...activity,
-        actorName:systemActorLabels[activity.actorId] ??
-            actorNames.get(activity.actorId) ??
-            (activity.actorId ? "Deleted user" : "System"),
+        actorName:actorDisplayName(activity.actorId,actorNames),
         entityLabel:activity.entityType === "lead" ? leadNames.get(activity.entityId) : undefined
     }));
 }

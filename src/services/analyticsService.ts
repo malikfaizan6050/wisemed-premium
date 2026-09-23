@@ -7,6 +7,7 @@ import type { DashboardAnalytics } from "@/types/crm-analytics";
 import { listRoles } from "@/repositories/roleRepository";
 import { isSalesUser } from "@/lib/roleClassification";
 import { getLeadVisibilityScope } from "@/services/leadVisibilityService";
+import { actorDisplayName,resolveActorNames } from "@/services/actorNameService";
 
 export class AnalyticsServiceError extends Error {
     constructor(message:string,public readonly status:number) { super(message); }
@@ -32,7 +33,6 @@ export async function getDashboardAnalytics(viewer:CurrentCRMUser):Promise<Dashb
     ]);
     const roleMap=new Map(roles.map((role)=>[role.id,role]));
     const employees=allEmployees.filter((employee)=>isSalesUser(roleMap.get(employee.roleId)));
-    const employeeMap = new Map(employees.map((employee)=>[employee.uid,employee]));
     const leadMap = new Map(leads.map((lead)=>[lead.id,lead]));
     const activityCount = new Map<string,number>();
     activities.forEach((activity)=>activityCount.set(activity.actorId,(activityCount.get(activity.actorId) ?? 0)+1));
@@ -46,6 +46,13 @@ export async function getDashboardAnalytics(viewer:CurrentCRMUser):Promise<Dashb
             recentActivityCount:activityCount.get(employee.uid) ?? 0
         };
     }).sort((first,second)=>second.assignedLeads-first.assignedLeads || first.name.localeCompare(second.name));
+
+    // Resolved for every actor, not just the sales subset above. The dashboard
+    // previously matched activity actors against `employeeMap`, which holds
+    // sales staff only, so anything done by an admin or a manager displayed as
+    // the placeholder "CRM User" instead of the person's name.
+    const recentActivities = activities.slice(0,10);
+    const actorNames = await resolveActorNames(recentActivities.map((activity)=>activity.actorId));
 
     const pipelineCounts = new Map<string,number>();
     leads.forEach((lead)=>pipelineCounts.set(lead.status,(pipelineCounts.get(lead.status) ?? 0)+1));
@@ -61,12 +68,12 @@ export async function getDashboardAnalytics(viewer:CurrentCRMUser):Promise<Dashb
         scope:visibility.kind==="all"?"all":ownerIds?.length===1&&ownerIds[0]===viewer.uid?"own":"team",
         leadsByEmployee,
         pipelineSummary:Array.from(pipelineCounts,([status,count])=>({ status,count })).sort((first,second)=>second.count-first.count),
-        recentActivities:activities.slice(0,10).map((activity)=>{
+        recentActivities:recentActivities.map((activity)=>{
             const lead = activity.entityType === "lead" ? leadMap.get(activity.entityId) : undefined;
             return {
                 ...activity,
                 metadata:{},
-                employeeName:employeeMap.get(activity.actorId)?.displayName ?? (activity.actorType === "user" ? "CRM User" : activity.actorType),
+                employeeName:actorDisplayName(activity.actorId,actorNames),
                 leadName:lead ? `${lead.firstName ?? ""} ${lead.lastName ?? ""}`.trim() || lead.organization || "Lead" : "—"
             };
         })
