@@ -104,8 +104,8 @@ export default function ImportLeadsPage(){
         // A name can arrive as one combined column or as two, so any of the
         // three satisfies the requirement.
         const hasName=selectedFields.has("fullName")||selectedFields.has("firstName")||selectedFields.has("lastName");
-        if(!hasName||!selectedFields.has("organization")||(!selectedFields.has("email")&&!selectedFields.has("phone"))){
-            setMessage({ text:"Map a name column, Organization, and at least Email or Phone before continuing.",tone:"error" });return;
+        if((!hasName&&!selectedFields.has("organization"))||(!selectedFields.has("email")&&!selectedFields.has("phone"))){
+            setMessage({ text:"Map a name or Organization column, and at least Email or Phone, before continuing.",tone:"error" });return;
         }
         const nextRecords=mappedRecords();
         setLoading(true);setMessage({ text:"",tone:"error" });

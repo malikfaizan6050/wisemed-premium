@@ -74,54 +74,88 @@ export function emptyImportRecord():ImportLeadRecord {
  * first name; a single remaining word is treated as a surname, since that is
  * what a clinic list normally holds.
  */
-const nameTitles = new Set(["dr","dr.","doctor","mr","mr.","mrs","mrs.","ms","ms.","miss","prof","prof.","professor"]);
-const nameSuffixes = new Set(["md","m.d.","do","d.o.","dds","dmd","np","pa","pa-c","phd","ph.d.","rn","facs","facp","jr","jr.","sr","sr.","ii","iii","iv"]);
+const nameTitles = new Set(["dr","doctor","mr","mrs","ms","miss","prof","professor"]);
+
+// Clinical credentials trail a provider's name in every calling list and are
+// not part of it. Compared after punctuation is stripped, so "M.D.", "MD." and
+// "md" are one entry.
+const nameSuffixes = new Set([
+    "md","do","dds","dmd","dc","dpm","od","dvm","pharmd",
+    "np","pa","pac","aprn","pmhnp","fnpc","fnp","crna","rn","lvn","bsn","msn","msm","mha","mph","mba","bba","bs","ba","ms",
+    "phd","edd","rd","rdn","lcsw","lpc",
+    "facs","facp","facc","faap","faan","fase","fccp",
+    "jr","sr","ii","iii","iv"
+]);
+
+/** Lower-cases and drops the punctuation credentials are written with. */
+function nameToken(value:string) {
+    return value.toLowerCase().replace(/[.,'"()-]/g,"");
+}
+
+function isDroppableNamePart(part:string) {
+    const token = nameToken(part);
+    return token === "" || nameTitles.has(token) || nameSuffixes.has(token);
+}
 
 export function splitFullName(value:string):{ firstName:string;lastName:string } {
     const cleaned = value.replace(/\s+/g," ").trim();
     if(!cleaned) return { firstName:"",lastName:"" };
 
-    // "Smith, Jane" is as common in exported lists as "Jane Smith".
-    if(cleaned.includes(",")){
-        const [surname,...rest] = cleaned.split(",");
-        const given = rest.join(" ").trim();
-        if(surname.trim() && given) return { firstName:stripAffixes(given),lastName:stripAffixes(surname) };
+    // A comma in a provider's name nearly always introduces credentials
+    // ("Mohammad Ahmad, MD"), not a surname-first listing ("Smith, Jane").
+    // Telling them apart by the comma alone read the whole name as the
+    // surname. What distinguishes them is how much real name sits in front of
+    // the comma: one word means surname-first, more means the comma is only
+    // fencing off letters after the name.
+    const [beforeComma,...afterComma] = cleaned.split(",");
+    const leading = meaningfulParts(beforeComma,false);
+    const trailing = meaningfulParts(afterComma.join(" "),true);
+
+    if(leading.length === 1 && trailing.length > 0){
+        return { firstName:trailing.join(" "),lastName:leading[0] };
     }
 
-    const parts = cleaned.split(" ").filter((part)=>{
-        const bare = part.toLowerCase().replace(/[,]/g,"");
-        return !nameTitles.has(bare) && !nameSuffixes.has(bare);
-    });
-
-    if(parts.length === 0) return { firstName:"",lastName:stripAffixes(cleaned) };
+    const parts = leading.length ? [...leading,...trailing] : trailing;
+    if(parts.length === 0) return { firstName:"",lastName:"" };
+    // One word is a surname, which is what a clinic list usually records.
     if(parts.length === 1) return { firstName:"",lastName:parts[0] };
     return { firstName:parts[0],lastName:parts.slice(1).join(" ") };
 }
 
-function stripAffixes(value:string) {
-    return value.split(" ").filter((part)=>{
-        const bare = part.toLowerCase().replace(/[,]/g,"");
-        return !nameTitles.has(bare) && !nameSuffixes.has(bare);
-    }).join(" ").trim();
+/**
+ * The parts of a name fragment that are actually the name: titles,
+ * credentials, parenthetical nicknames and blanks removed.
+ *
+ * `dropInitials` applies only after a comma, where a lone letter is the tail
+ * of a credential typed with a space ("PA C" for PA-C). Before the comma the
+ * same letter is a middle initial and has to survive, or "Kota J, Reddy MD."
+ * loses the J and then looks like a surname-first listing.
+ */
+function meaningfulParts(value:string,dropInitials:boolean):string[] {
+    return value.split(" ")
+        .filter((part)=>part.trim() && !/^\(.*\)$/.test(part.trim()))
+        .filter((part)=>!isDroppableNamePart(part))
+        .filter((part)=>!dropInitials || nameToken(part).length > 1);
 }
 
 /**
  * Checks one mapped row.
  *
- * A name is required in some form, as is the clinic and one way to reach it.
- * Everything else is optional: a calling list is routinely part-filled, and
- * rejecting a row for a blank receptionist name would throw away a usable lead.
+ * A lead needs a way to be contacted and something to call it. It does not
+ * need both a person and a practice: a calling list routinely holds a clinic
+ * with no named doctor ("Modern Foot & Ankle") and a doctor with no listed
+ * practice, and both are real leads worth working. Requiring a personal name
+ * and an organization together rejected about half of a real list. Everything
+ * else is optional, since such a sheet is always part-filled.
  */
 export function validateImportRecord(record:ImportLeadRecord):string[] {
     const errors:string[]=[];
     // The resolved name is checked, not the raw cell. A cell holding only a
-    // title ("Dr.") is non-empty but splits to nothing, so testing the cell
-    // would admit a lead with no name on it at all.
+    // title ("Dr.") is non-empty but splits to nothing.
     const split = splitFullName(record.fullName ?? "");
     const firstName = record.firstName?.trim() || split.firstName;
     const lastName = record.lastName?.trim() || split.lastName;
-    if(!firstName && !lastName) errors.push("A name is required");
-    if(!record.organization.trim()) errors.push("Organization is required");
+    if(!firstName && !lastName && !record.organization.trim()) errors.push("A provider name or an organization is required");
     if(!record.email.trim()&&!record.phone.trim()) errors.push("Email or Phone is required");
     if(record.email.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(record.email.trim())) errors.push("Email is invalid");
     for(const [label,value] of [["Monthly Claims",record.monthlyClaims],["Monthly Collections",record.monthlyCollections]] as const){
