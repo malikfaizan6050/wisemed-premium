@@ -15,6 +15,25 @@ export async function listLeadsForUser(ownerId?:string,limit=500):Promise<Lead[]
     return listLeadsForOwners(ownerId?[ownerId]:null,limit);
 }
 
+function createdAtMillis(data:FirebaseFirestore.DocumentData) {
+    const createdAt=data.createdAt;
+    if(createdAt instanceof Timestamp) return createdAt.toMillis();
+    if(createdAt instanceof Date) return createdAt.getTime();
+    return 0;
+}
+
+/**
+ * Reads the leads visible to a set of owners, newest first.
+ *
+ * Firestore caps an `in` filter at 30 values, so a large team is read as
+ * several queries. Their results used to be concatenated in query order and
+ * then truncated, which meant that once the earlier chunks alone reached the
+ * limit the people in the later chunks had *none* of their leads returned —
+ * a sales manager with more than thirty reports simply could not see part of
+ * their own team. Sorting before truncating makes the cut-off the oldest
+ * leads, which is what a limit is meant to drop, and gives every screen the
+ * same newest-first order.
+ */
 export async function listLeadsForOwners(ownerIds:string[]|null,limit=500):Promise<Lead[]> {
     const safeLimit=Math.min(Math.max(limit,1),2000);
     if(ownerIds&&ownerIds.length===0) return [];
@@ -26,11 +45,15 @@ export async function listLeadsForOwners(ownerIds:string[]|null,limit=500):Promi
         if(chunk) query=chunk.length===1?query.where("ownerId","==",chunk[0]):query.where("ownerId","in",chunk);
         return query.limit(safeLimit).get();
     }));
-    return snapshots.flatMap((snapshot)=>snapshot.docs).slice(0,safeLimit).map((document)=>{
-        const { emailNormalized:_email,phoneNormalized:_phone,npiNormalized:_npi,...data }=document.data();
-        void _email;void _phone;void _npi;
-        return { id:document.id,...data } as Lead;
-    });
+    return snapshots
+        .flatMap((snapshot)=>snapshot.docs)
+        .sort((first,second)=>createdAtMillis(second.data())-createdAtMillis(first.data()))
+        .slice(0,safeLimit)
+        .map((document)=>{
+            const { emailNormalized:_email,phoneNormalized:_phone,npiNormalized:_npi,organizationNormalized:_organization,...data }=document.data();
+            void _email;void _phone;void _npi;void _organization;
+            return { id:document.id,...data } as Lead;
+        });
 }
 
 export interface AssignLeadInput {

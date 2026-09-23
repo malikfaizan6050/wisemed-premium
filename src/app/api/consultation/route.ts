@@ -1,5 +1,8 @@
 import { createPublicLead } from "@/services/leadIntakeService";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import { NextResponse } from "next/server";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface RecaptchaResult {
     success?:boolean;
@@ -12,6 +15,11 @@ function text(value:unknown) {
 }
 
 export async function POST(request:Request) {
+    // reCAPTCHA tokens are single-use, but a scripted client can still mint
+    // them. This bounds how fast one address can reach the lead pipeline.
+    const limited = enforceRateLimit(request,"consultation.submit",10);
+    if(limited) return limited;
+
     try {
         const body:unknown = await request.json();
 
@@ -57,6 +65,16 @@ export async function POST(request:Request) {
         if(!firstName || !email || !organization || !specialty){
             return NextResponse.json(
                 { success:false,error:"First name, email, organization and specialty are required." },
+                { status:400 }
+            );
+        }
+
+        // The browser only enforces this when the field carries type="email";
+        // nothing checked it here, so an unreachable address was stored as a
+        // lead the sales team could never follow up.
+        if(!emailPattern.test(email) || email.length > 254){
+            return NextResponse.json(
+                { success:false,error:"Enter a valid email address." },
                 { status:400 }
             );
         }

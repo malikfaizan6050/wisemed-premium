@@ -7,6 +7,8 @@ import { getLeadVisibilityScope } from "@/services/leadVisibilityService";
 import { getLeadStageLabel } from "@/lib/leadStages";
 import type { Lead } from "@/types/crm";
 
+const exportScopes = new Set(["selected","filtered","all"]);
+
 const columns = [
     "Provider",
     "Organization",
@@ -62,7 +64,11 @@ export async function POST(request:NextRequest) {
         const requestedIds = Array.isArray(data.leadIds)
             ? data.leadIds.filter((id):id is string=>typeof id === "string")
             : null;
-        const scopeLabel = typeof data.scope === "string" ? data.scope : "all";
+        // The scope reaches the Content-Disposition header, so only the three
+        // scopes the UI offers are accepted. Echoing the caller's own string
+        // let a quote or newline in it rewrite the response headers.
+        const requestedScope = typeof data.scope === "string" ? data.scope : "all";
+        const scopeLabel = exportScopes.has(requestedScope) ? requestedScope : "all";
 
         // Always re-read through the caller's own visibility scope, so the
         // export cannot widen what they are allowed to see.

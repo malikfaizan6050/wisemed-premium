@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase-admin";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { createPublicLead } from "@/services/leadIntakeService";
+import { enforceRateLimit } from "@/lib/rateLimit";
 
 interface IncomingLead {
     firstName?:string;
@@ -173,158 +174,78 @@ async function sendWhatsAppMessage(
 // Create CRM Lead
 // ======================================
 
+
+/**
+ * Hands a WhatsApp enquiry to the same intake path the website form uses.
+ *
+ * This route used to write straight into `crm_leads` with `leadScore:0` and
+ * `priority:"standard"` hard-coded, no duplicate check and none of the
+ * normalised lookup keys. Every WhatsApp lead therefore scored zero however
+ * strong it was, ranked below every website lead, and arrived again as a fresh
+ * record each time Meta retried the webhook. Routing it here gives it the
+ * scoring, duplicate detection, activity trail and owner alerts that every
+ * other lead gets.
+ */
 async function createCRMLead(
     lead:IncomingLead,
     phone:string
 ){
 
-
     try {
 
+        const result = await createPublicLead({
 
-        await db
-        .collection("crm_leads")
-        .add({
+            firstName:lead.firstName || "",
 
+            lastName:lead.lastName || "",
 
-            firstName:
-            lead.firstName || "",
+            email:lead.email || "",
 
+            phone:lead.phone || phone,
 
-            lastName:
-            lead.lastName || "",
+            organization:lead.organization || "",
 
+            npi:lead.npi || "",
 
-            email:
-            lead.email || "",
-
-
-            phone:
-            lead.phone || phone,
-
-
-            organization:
-            lead.organization || "",
-
-
-            specialty:
-            lead.specialty || "",
-
-
-            npi:
-            lead.npi || "",
-
-
+            specialty:lead.specialty || "",
 
             claimsVolume:
-            lead.monthlyClaims || 0,
+            Number.isFinite(Number(lead.monthlyClaims))
+            ? Math.max(0,Number(lead.monthlyClaims))
+            : 0,
 
+            currentBillingMethod:lead.currentBillingMethod || "",
 
-            monthlyClaims:
-            lead.monthlyClaims || 0,
+            ehrSystem:lead.ehrSystem || "",
 
+            message:lead.message || "",
 
+            billingChallenges:
+            Array.isArray(lead.challenges)
+            ? lead.challenges.filter((item):item is string=>typeof item === "string")
+            : [],
 
-            currentBillingMethod:
-            lead.currentBillingMethod || "unknown",
+            // Messaging us on WhatsApp is the opt-in to be answered there.
+            contactConsent:true,
 
+            source:"whatsapp_ai",
 
-
-            ehrSystem:
-            lead.ehrSystem || "",
-
-
-
-            denialRate:
-            0,
-
-
-            estimatedRevenue:
-            0,
-
-
-
-            status:
-            "new_inquiry",
-
-
-
-            priority:
-            "standard",
-
-
-
-            leadScore:
-            0,
-
-
-
-            opportunityScore:
-            0,
-
-
-
-            message:
-            lead.message || "",
-
-
-
-            challenges:
-            lead.challenges || [],
-
-
-
-            notes:
-            "",
-
-
-
-            nextAction:
-            "Review WhatsApp lead",
-
-
-
-            assignedTo:
-            null,
-
-
-
-            source:
-            "whatsapp_ai",
-
-
-
-            whatsappNumber:
-            phone,
-
-
-
-            createdAt:
-            new Date(),
-
-
-
-            updatedAt:
-            new Date()
-
+            whatsappNumber:phone
 
         });
 
-
+        return result.ok;
 
     }
     catch {
 
         console.error("WhatsApp CRM lead creation failed");
 
+        return false;
+
     }
 
 }
-
-
-
-
-
 
 
 
@@ -336,6 +257,12 @@ async function createCRMLead(
 export async function POST(
     request:Request
 ){
+
+// Meta retries a webhook it believes failed, and an outage upstream can turn
+// that into a burst. The signature check below rejects forgeries; this keeps a
+// retry storm from running the AI and lead pipeline hundreds of times a minute.
+const limited = enforceRateLimit(request,"whatsapp.webhook",120);
+if(limited) return limited;
 
 try {
     const rawBody = await request.text();
@@ -447,11 +374,13 @@ try {
     // ======================================
 
 
+    let crmCreated = false;
+
     if(
         n8nData?.lead
     ){
 
-        await createCRMLead(
+        crmCreated = await createCRMLead(
             n8nData.lead,
             phone
         );
@@ -495,8 +424,7 @@ try {
 
             received:true,
 
-            crmCreated:
-            !!n8nData?.lead
+            crmCreated
 
         },
 

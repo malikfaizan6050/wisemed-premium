@@ -3,15 +3,11 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase-admin";
 import { requirePermission } from "@/lib/apiAuth";
 import { calculateLeadScore,getLeadPriority } from "@/lib/leadScoring";
-import { normalizeEmail,normalizePhone } from "@/lib/leadDuplicateDetection";
+import { normalizeEmail,normalizeOrganization,normalizePhone } from "@/lib/leadDuplicateDetection";
 import { validateImportRecord } from "@/lib/crmImport";
 import type { DuplicateStrategy,ImportHistoryEntry,ImportLeadRecord,ImportRowAnalysis } from "@/types/crm-import";
 
 const MAX_IMPORT_ROWS=2000;
-
-function normalizeOrganization(value:string):string {
-    return value.trim().toLowerCase().replace(/[^a-z0-9]/g,"");
-}
 
 function numericValue(value:string|number):number {
     const parsed=Number(String(value).replace(/[$,\s]/g,""));
@@ -36,16 +32,24 @@ async function authorize(request:Request){
     return authorization;
 }
 
+/**
+ * Builds the comparison keys for every stored lead.
+ *
+ * Keys are always recomputed from the raw fields rather than read from the
+ * stored `*Normalized` ones. Those were written by two different algorithms
+ * over the life of this collection, so a stored key cannot be assumed to be in
+ * the format the current normaliser produces.
+ */
 async function loadDuplicateIndex(){
-    const snapshot=await db.collection("crm_leads").select("email","emailNormalized","phone","phoneNormalized","organization","organizationNormalized").get();
+    const snapshot=await db.collection("crm_leads").select("email","phone","organization").get();
     const email=new Map<string,string>();
     const phone=new Map<string,string>();
     const organization=new Map<string,string>();
     for(const document of snapshot.docs){
         const data=document.data();
-        const emailKey=typeof data.emailNormalized==="string"?data.emailNormalized:normalizeEmail(typeof data.email==="string"?data.email:"");
-        const phoneKey=typeof data.phoneNormalized==="string"?data.phoneNormalized:normalizePhone(typeof data.phone==="string"?data.phone:"");
-        const organizationKey=typeof data.organizationNormalized==="string"?data.organizationNormalized:normalizeOrganization(typeof data.organization==="string"?data.organization:"");
+        const emailKey=normalizeEmail(typeof data.email==="string"?data.email:"");
+        const phoneKey=normalizePhone(typeof data.phone==="string"?data.phone:"");
+        const organizationKey=normalizeOrganization(typeof data.organization==="string"?data.organization:"");
         if(emailKey&&!email.has(emailKey)) email.set(emailKey,document.id);
         if(phoneKey&&!phone.has(phoneKey)) phone.set(phoneKey,document.id);
         if(organizationKey&&!organization.has(organizationKey)) organization.set(organizationKey,document.id);
@@ -61,23 +65,28 @@ async function analyze(records:ImportLeadRecord[]):Promise<ImportRowAnalysis[]> 
         const emailKey=normalizeEmail(record.email);
         const phoneKey=normalizePhone(record.phone);
         const organizationKey=normalizeOrganization(record.organization);
+        // Only the contact details identify a person. The practice name is
+        // reported when it matches as well, but it never makes a row a
+        // duplicate on its own: every provider at one clinic shares it, and
+        // with the "update existing" strategy that turned an import of a
+        // practice's staff into each row overwriting the one before it.
         if(emailKey&&index.email.has(emailKey)) matches.set("email",index.email.get(emailKey)!);
         if(phoneKey&&index.phone.has(phoneKey)) matches.set("phone",index.phone.get(phoneKey)!);
-        if(organizationKey&&index.organization.has(organizationKey)) matches.set("organization",index.organization.get(organizationKey)!);
-        const initialDuplicateId=matches.values().next().value as string|undefined;
-        if(!initialDuplicateId&&errors.length===0){
+        const duplicateId=matches.values().next().value as string|undefined;
+        if(duplicateId&&organizationKey&&index.organization.get(organizationKey)===duplicateId){
+            matches.set("organization",duplicateId);
+        }
+        if(!duplicateId&&errors.length===0){
+            // Claims these keys for this row, so a second row carrying the same
+            // contact details inside one file is caught as a duplicate too.
             const temporaryId=`row:${rowIndex}`;
-            if(emailKey&&index.email.has(emailKey)) matches.set("email",index.email.get(emailKey)!);
-            if(phoneKey&&index.phone.has(phoneKey)) matches.set("phone",index.phone.get(phoneKey)!);
-            if(organizationKey&&index.organization.has(organizationKey)) matches.set("organization",index.organization.get(organizationKey)!);
             if(emailKey) index.email.set(emailKey,temporaryId);
             if(phoneKey) index.phone.set(phoneKey,temporaryId);
-            if(organizationKey) index.organization.set(organizationKey,temporaryId);
+            if(organizationKey&&!index.organization.has(organizationKey)) index.organization.set(organizationKey,temporaryId);
         }
-        const matchedIds=new Set(matches.values());
-        if(Array.from(matchedIds).filter((id)=>!id.startsWith("row:")).length>1) errors.push("Row matches multiple existing leads");
-        const resolvedId=initialDuplicateId??(matches.values().next().value as string|undefined);
-        return { index:rowIndex,valid:errors.length===0,errors,duplicate:Boolean(resolvedId),duplicateId:resolvedId?.startsWith("row:")?null:resolvedId??null,matchingFields:Array.from(matches.keys()) };
+        const matchedIds=new Set(Array.from(matches.values()).filter((id)=>!id.startsWith("row:")));
+        if(matchedIds.size>1) errors.push("Row matches multiple existing leads");
+        return { index:rowIndex,valid:errors.length===0,errors,duplicate:Boolean(duplicateId),duplicateId:duplicateId?.startsWith("row:")?null:duplicateId??null,matchingFields:Array.from(matches.keys()) };
     });
 }
 
@@ -89,7 +98,8 @@ function storedLead(record:ImportLeadRecord,userId:string){
         organization:record.organization.trim(),specialty:record.specialty.trim(),monthlyClaims,claimsVolume:monthlyClaims,
         monthlyCollections,estimatedRevenue:monthlyCollections,status:"new_inquiry",source:"import",createdBy:userId,createdById:userId,
         assignedTo:null,ownerId:null,ownerSnapshot:null,assignedById:null,assignedAt:null,activity:[],notes:"",nextAction:"Review imported provider lead",
-        emailNormalized:normalizeEmail(record.email),phoneNormalized:normalizePhone(record.phone),organizationNormalized:normalizeOrganization(record.organization)
+        emailNormalized:normalizeEmail(record.email),phoneNormalized:normalizePhone(record.phone),
+        npiNormalized:"",organizationNormalized:normalizeOrganization(record.organization)
     };
     const leadScore=calculateLeadScore(base);
     return { ...base,leadScore,opportunityScore:leadScore,priority:getLeadPriority(leadScore) };
@@ -150,17 +160,22 @@ export async function POST(request:Request){
                 writes.push(writer.create(db.collection("crm_leads").doc(),{ ...lead,createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp() }));
             }
         }
-        const results=await Promise.allSettled(writes);
+        // Closed first: BulkWriter only settles the per-write promises once the
+        // batches holding them have actually been flushed.
         await writer.close();
+        const results=await Promise.allSettled(writes);
         const successfulImports=results.filter((result)=>result.status==="fulfilled").length;
         const writeFailures=results.length-successfulImports;
         const invalidRecords=records.length-valid;
-        const failedImports=invalidRecords+writeFailures+skippedDuplicates;
+        // Skipped duplicates are reported separately; counting them as
+        // failures told an administrator that rows had failed when the import
+        // had done exactly what the chosen strategy asked for.
+        const failedImports=invalidRecords+writeFailures;
         const historyReference=await db.collection("import_history").add({
             fileName,importedBy:authorization.user.uid,importedByName:authorization.user.displayName,totalRecords:records.length,
-            successfulImports,failedImports,duplicateRecords:duplicates,duplicateStrategy:strategy,createdAt:FieldValue.serverTimestamp()
+            successfulImports,failedImports,skippedDuplicates,duplicateRecords:duplicates,duplicateStrategy:strategy,createdAt:FieldValue.serverTimestamp()
         });
-        return NextResponse.json({ success:true,historyId:historyReference.id,analysis,summary:{ total:records.length,successfulImports,failedImports,duplicates } });
+        return NextResponse.json({ success:true,historyId:historyReference.id,analysis,summary:{ total:records.length,successfulImports,failedImports,skippedDuplicates,duplicates } });
     }catch(error){
         console.error("Lead import failed",error);
         return NextResponse.json({ error:"Unable to process lead import" },{ status:500 });

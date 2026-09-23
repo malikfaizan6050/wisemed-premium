@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { LEAD_STAGE_OPTIONS } from "@/lib/leadStages";
+import { LEAD_PRIORITY_OPTIONS } from "@/lib/leadPriorities";
 
 export interface DashboardFilterValues {
     search:string; pipeline:string; assignee:string; source:string; specialty:string;
@@ -21,7 +22,7 @@ export default function DashboardFilters({ values,assignees,sources,specialties,
         <Filter value={values.assignee} onChange={(value)=>onChange("assignee",value)} options={[["all","All Assignees"],["unassigned","Unassigned"],...assignees.map((value):[string,string]=>[value,value])]}/>
         <Filter value={values.source} onChange={(value)=>onChange("source",value)} options={[["all","All Sources"],...sources.map((value):[string,string]=>[value,value.replaceAll("_"," ")])]}/>
         <Filter value={values.specialty} onChange={(value)=>onChange("specialty",value)} options={[["all","All Specialties"],...specialties.map((value):[string,string]=>[value,value])]}/>
-        <Filter value={values.priority} onChange={(value)=>onChange("priority",value)} options={[["all","All Priorities"],["critical","Critical"],["high","High"],["standard","Standard"]]}/>
+        <Filter value={values.priority} onChange={(value)=>onChange("priority",value)} options={[["all","All Priorities"],...LEAD_PRIORITY_OPTIONS.map(([value,label]):[string,string]=>[value,label])]}/>
         <Filter value={values.score} onChange={(value)=>onChange("score",value)} options={[["all","All Scores"],["critical","85–100"],["high","60–84"],["standard","0–59"]]}/>
         <DateFilter label="From" value={values.dateFrom} onChange={(value)=>onChange("dateFrom",value)}/>
         <DateFilter label="To" value={values.dateTo} onChange={(value)=>onChange("dateTo",value)}/>

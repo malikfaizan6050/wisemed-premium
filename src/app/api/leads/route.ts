@@ -4,6 +4,7 @@ import {
     findDuplicateLead,
     normalizeEmail,
     normalizeNpi,
+    normalizeOrganization,
     normalizePhone
 } from "@/lib/leadDuplicateDetection";
 import { NextRequest, NextResponse } from "next/server";
@@ -13,6 +14,11 @@ import { recordActivity } from "@/services/activityService";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { listLeadsForOwners } from "@/repositories/leadRepository";
 import { getLeadVisibilityScope } from "@/services/leadVisibilityService";
+import { DEFAULT_LEAD_STAGE,isLeadStage } from "@/lib/leadStages";
+
+function normalizeStage(value:string) {
+    return isLeadStage(value) ? value : DEFAULT_LEAD_STAGE;
+}
 
 export async function GET(request:NextRequest) {
     const limited=enforceRateLimit(request,"lead.read",120);
@@ -21,9 +27,12 @@ export async function GET(request:NextRequest) {
     if(!user) return NextResponse.json({ error:"Active CRM user profile required",code:"unauthenticated" },{ status:401 });
     if(!hasPermission(user,"leads.read.all") && !hasPermission(user,"leads.read.owned")) return NextResponse.json({ error:"Insufficient permissions",code:"forbidden" },{ status:403 });
     try{
+        // `?limit=0` and `?limit=-1` used to reach Firestore untouched, which
+        // returns nothing or throws outright rather than falling back.
         const requested=Number(request.nextUrl.searchParams.get("limit")??500);
+        const limit=Number.isFinite(requested)&&requested>=1?Math.floor(requested):500;
         const scope=await getLeadVisibilityScope(user);
-        const leads=await listLeadsForOwners(scope.kind==="all"?null:scope.ownerIds,Number.isFinite(requested)?requested:500);
+        const leads=await listLeadsForOwners(scope.kind==="all"?null:scope.ownerIds,limit);
         return NextResponse.json({ leads });
     }
     catch{ return NextResponse.json({ error:"Unable to load leads",code:"lead_read_failed" },{ status:500 }); }
@@ -198,7 +207,9 @@ export async function POST(request: NextRequest) {
             ),
             message:textValue(data,"message","conversation_summary"),
             source:textValue(data,"source") || "whatsapp_ai",
-            status:textValue(data,"status") || "new_inquiry",
+            // An unrecognised stage is replaced rather than stored: a lead
+            // parked in a stage no screen renders is invisible everywhere.
+            status:normalizeStage(textValue(data,"status")),
             assignedTo:null,
             ownerId:null,
             ownerSnapshot:null,
@@ -248,6 +259,7 @@ export async function POST(request: NextRequest) {
             emailNormalized:normalizeEmail(lead.email),
             phoneNormalized:normalizePhone(lead.phone),
             npiNormalized:normalizeNpi(lead.npi),
+            organizationNormalized:normalizeOrganization(lead.organization),
             leadScore,
             opportunityScore:leadScore,
             priority

@@ -3,7 +3,7 @@ import type { CRMDateValue } from "@/types/crm-auth";
 export interface CRMNotification {
     id:string;
     userId:string;
-    type:"lead.assigned"|"lead_assigned"|"lead.created"|"lead.status_changed"|"user.created"|"activity.created";
+    type:"lead.assigned"|"lead_assigned"|"lead.created"|"lead.status_changed"|"lead.notes_changed"|"user.created"|"activity.created";
     title:string;
     message:string;
     entityType:string;

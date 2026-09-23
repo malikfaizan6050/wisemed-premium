@@ -58,16 +58,19 @@ export default function Navbar(){
 
         {/* Desktop navigation */}
         <div className="hidden items-center gap-9 text-sm font-medium text-slate-600 md:flex">
+          {/* Link, not a bare anchor: these used plain hrefs, so every desktop
+              navigation threw away the loaded application and fetched the whole
+              page again. The mobile menu below already routed client-side, so
+              the two halves of the same menu behaved differently. */}
           {links.map((item)=>(
-            <motion.a
+            <motion.div
               key={item.name}
-              href={item.href}
               whileHover={{ y:-2,color:"#2563eb" }}
               transition={{ duration:0.2 }}
               className="cursor-pointer"
             >
-              {item.name}
-            </motion.a>
+              <Link href={item.href}>{item.name}</Link>
+            </motion.div>
           ))}
         </div>
 

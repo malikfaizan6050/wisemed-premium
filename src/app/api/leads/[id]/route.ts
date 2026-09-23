@@ -4,6 +4,7 @@ import {
     findDuplicateLead,
     normalizeEmail,
     normalizeNpi,
+    normalizeOrganization,
     normalizePhone
 } from "@/lib/leadDuplicateDetection";
 import { NextRequest, NextResponse } from "next/server";
@@ -12,6 +13,8 @@ import { DELETED_LEADS_COLLECTION,LEADS_COLLECTION } from "@/lib/crmCollections"
 import { canAccessLeadForUser } from "@/services/leadVisibilityService";
 import { recordActivity } from "@/services/activityService";
 import { createNotification } from "@/services/notificationService";
+import { LEAD_STAGE_KEYS } from "@/lib/leadStages";
+import { LEAD_PRIORITIES } from "@/lib/leadPriorities";
 
 const textFields = new Set([
     "firstName",
@@ -27,11 +30,22 @@ const textFields = new Set([
     "billingChallenge",
     "interestedService",
     "preferredContactMethod",
-    "status",
-    "priority",
     "notes",
     "nextAction"
 ]);
+
+/**
+ * Fields whose value has to be one of a fixed set.
+ *
+ * `status` and `priority` were plain text fields, so any string at all was
+ * stored. A typo or a stale client could park a lead in a stage no screen
+ * renders, which is exactly the damage `/api/leads/normalize-stages` exists to
+ * repair after the fact. They are checked on the way in instead.
+ */
+const enumFields:Record<string,ReadonlySet<string>> = {
+    status:new Set(LEAD_STAGE_KEYS),
+    priority:new Set(LEAD_PRIORITIES)
+};
 
 const dateFields = new Set(["dueDate"]);
 
@@ -155,6 +169,18 @@ export async function PATCH(
         const updates:Record<string,string | number | Date | null> = {};
 
         for(const [field,value] of entries){
+            const allowedValues = enumFields[field];
+            if(allowedValues){
+                if(typeof value === "string" && allowedValues.has(value)){
+                    updates[field] = value;
+                    continue;
+                }
+                return NextResponse.json(
+                    { error:`Invalid value for ${field}` },
+                    { status:400 }
+                );
+            }
+
             if(dateFields.has(field) && typeof value === "string"){
                 if(value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value)){
                     updates[field] = value || null;
@@ -244,6 +270,7 @@ export async function PATCH(
             updates.emailNormalized = normalizeEmail(String(mergedLead.email ?? ""));
             updates.phoneNormalized = normalizePhone(String(mergedLead.phone ?? ""));
             updates.npiNormalized = normalizeNpi(String(mergedLead.npi ?? ""));
+            updates.organizationNormalized = normalizeOrganization(String(mergedLead.organization ?? ""));
         }
 
         if(entries.some(([field]) => scoringFields.has(field))){
@@ -280,6 +307,14 @@ export async function PATCH(
                 actorId:currentUser.uid,actorType:"user",action:"lead.notes_changed",entityType:"lead",entityId:id,
                 metadata:{ changed:true }
             }));
+            // The owner is told when somebody else writes on their lead. They
+            // are not told when they wrote it themselves.
+            if(typeof currentLead.ownerId === "string" && currentLead.ownerId !== currentUser.uid){
+                activities.push(createNotification({
+                    userId:currentLead.ownerId,type:"lead.notes_changed",title:"Lead notes updated",
+                    message:`${currentUser.displayName} updated the notes on a lead you own.`,entityType:"lead",entityId:id
+                }).then(()=>""));
+            }
         }
         await Promise.all(activities).catch(()=>undefined);
 

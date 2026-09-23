@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect,useState } from "react";
+import { useEffect,useRef,useState } from "react";
 import { Bell } from "lucide-react";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import type { CRMNotification } from "@/types/crm-notification";
@@ -9,7 +9,23 @@ import { formatCRMDate,getApiError } from "./managementUtils";
 
 export default function NotificationBell() {
     const [open,setOpen]=useState(false);const [notifications,setNotifications]=useState<CRMNotification[]>([]);const [unread,setUnread]=useState(0);const [error,setError]=useState("");
+    const panelRef=useRef<HTMLDivElement|null>(null);
+    // The panel could only be closed with the bell itself, so it sat over the
+    // page while you tried to work behind it.
+    useEffect(()=>{
+        if(!open) return;
+        const onPointerDown=(event:MouseEvent|TouchEvent)=>{ if(!panelRef.current?.contains(event.target as Node)) setOpen(false); };
+        const onKeyDown=(event:KeyboardEvent)=>{ if(event.key==="Escape") setOpen(false); };
+        document.addEventListener("mousedown",onPointerDown);
+        document.addEventListener("touchstart",onPointerDown);
+        document.addEventListener("keydown",onKeyDown);
+        return ()=>{
+            document.removeEventListener("mousedown",onPointerDown);
+            document.removeEventListener("touchstart",onPointerDown);
+            document.removeEventListener("keydown",onKeyDown);
+        };
+    },[open]);
     useEffect(()=>{ let active=true;void authenticatedFetch("/api/notifications?limit=10").then(async(response)=>{const result:unknown=await response.json().catch(()=>null);if(!response.ok)throw new Error(getApiError(result,"Unable to load notifications"));if(active&&result&&typeof result==="object"&&"notifications" in result&&Array.isArray(result.notifications)){setNotifications(result.notifications as CRMNotification[]);setUnread("unreadCount" in result&&typeof result.unreadCount==="number"?result.unreadCount:0);}}).catch((reason:unknown)=>{if(active)setError(reason instanceof Error?reason.message:"Unable to load notifications");});return()=>{active=false;}; },[]);
     const markRead=async(notification:CRMNotification)=>{if(notification.read)return;const response=await authenticatedFetch(`/api/notifications/${notification.id}/read`,{method:"PATCH"});const result:unknown=await response.json().catch(()=>null);if(!response.ok){setError(getApiError(result,"Unable to mark notification as read"));return;}setNotifications((current)=>current.map((item)=>item.id===notification.id?{...item,read:true}:item));setUnread((count)=>Math.max(0,count-1));};
-    return <div className="relative"><button type="button" aria-label="Notifications" aria-expanded={open} onClick={()=>setOpen((value)=>!value)} className="relative rounded-xl border p-2 text-slate-600 hover:bg-slate-50"><Bell size={19}/>{unread>0&&<span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-red-600 px-1 text-center text-[11px] font-bold leading-5 text-white">{unread>9?"9+":unread}</span>}</button>{open&&<div className="absolute right-0 top-12 z-[70] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border bg-white p-3 shadow-xl"><h3 className="px-2 py-2 font-bold text-slate-900">Notifications</h3><FeedbackMessage message={error}/><div className="max-h-80 overflow-y-auto">{notifications.map((notification)=><button type="button" key={notification.id} onClick={()=>void markRead(notification)} className={`mt-1 w-full rounded-xl p-3 text-left ${notification.read?"bg-white":"bg-blue-50"}`}><p className="text-sm font-semibold text-slate-900">{notification.title}</p><p className="mt-1 text-xs text-slate-600">{notification.message}</p><p className="mt-2 text-[11px] text-slate-400">{formatCRMDate(notification.createdAt)}</p></button>)}{notifications.length===0&&<p className="p-4 text-sm text-slate-500">No notifications.</p>}</div></div>}</div>;
+    return <div className="relative" ref={panelRef}><button type="button" aria-label="Notifications" aria-expanded={open} onClick={()=>setOpen((value)=>!value)} className="relative rounded-xl border p-2 text-slate-600 hover:bg-slate-50"><Bell size={19}/>{unread>0&&<span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-red-600 px-1 text-center text-[11px] font-bold leading-5 text-white">{unread>9?"9+":unread}</span>}</button>{open&&<div className="absolute right-0 top-12 z-[70] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border bg-white p-3 shadow-xl"><h3 className="px-2 py-2 font-bold text-slate-900">Notifications</h3><FeedbackMessage message={error}/><div className="max-h-80 overflow-y-auto">{notifications.map((notification)=><button type="button" key={notification.id} onClick={()=>void markRead(notification)} className={`mt-1 w-full rounded-xl p-3 text-left ${notification.read?"bg-white":"bg-blue-50"}`}><p className="text-sm font-semibold text-slate-900">{notification.title}</p><p className="mt-1 text-xs text-slate-600">{notification.message}</p><p className="mt-2 text-[11px] text-slate-400">{formatCRMDate(notification.createdAt)}</p></button>)}{notifications.length===0&&<p className="p-4 text-sm text-slate-500">No notifications.</p>}</div></div>}</div>;
 }

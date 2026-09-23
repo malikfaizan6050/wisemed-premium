@@ -8,18 +8,24 @@ import { getRoleById } from "@/repositories/roleRepository";
 import type { ActivityEvent,CurrentCRMUser } from "@/types/crm-auth";
 import { LEADS_COLLECTION } from "@/lib/crmCollections";
 import { hasPermission } from "@/lib/apiAuth";
-import { createNotification } from "@/services/notificationService";
 
 export class ActivityServiceError extends Error {
     constructor(message:string,public readonly status:number) { super(message); }
 }
 
+/**
+ * Writes one entry to the audit trail.
+ *
+ * Recording used to also send the *actor* a notification titled "Important CRM
+ * activity" whenever they changed a lead's notes, edited a role or disabled a
+ * user: the CRM told you about the thing you had just done yourself, with no
+ * detail of what it was, so saving notes twice put two content-free unread
+ * badges on your own bell. Notifications now go to the person who needs to
+ * know — see the lead update route, which alerts the lead's owner — and the
+ * audit trail stays the record of who did what.
+ */
 export async function recordActivity(input:ActivityRecordInput) {
-    const id=await createActivityRecord(input);
-    if(input.actorType === "user" && ["lead.notes_changed","role.updated","user.disabled"].includes(input.action)){
-        await createNotification({ userId:input.actorId,type:"activity.created",title:"Important CRM activity",message:"An important CRM action was recorded.",entityType:input.entityType,entityId:input.entityId }).catch(()=>undefined);
-    }
-    return id;
+    return createActivityRecord(input);
 }
 
 /**

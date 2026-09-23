@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect,useState } from "react";
 import { Save,X } from "lucide-react";
 import type { Lead } from "@/types/crm";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
@@ -25,6 +25,15 @@ export default function CreateLeadModal({ open,onClose,lead,onSaved }:Props) {
     const [form,setForm] = useState(()=>createLeadFormValues(lead));
     const [errors,setErrors] = useState<Partial<Record<keyof LeadFormValues,string>>>({});
     const [feedback,setFeedback] = useState("");
+
+    // Escape closed every other dialog in the CRM but not this one, so a form
+    // opened by mistake could only be dismissed by finding its close button.
+    useEffect(()=>{
+        if(!open) return;
+        const onKeyDown=(event:KeyboardEvent)=>{ if(event.key === "Escape") onClose(); };
+        window.addEventListener("keydown",onKeyDown);
+        return ()=>window.removeEventListener("keydown",onKeyDown);
+    },[open,onClose]);
 
     if(!open) return null;
 
@@ -83,7 +92,8 @@ export default function CreateLeadModal({ open,onClose,lead,onSaved }:Props) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div role="dialog" aria-modal="true" aria-labelledby="lead-modal-title" className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-8">
+            <button type="button" aria-label="Close lead form" onClick={onClose} className="absolute inset-0 cursor-default"/>
+            <div role="dialog" aria-modal="true" aria-labelledby="lead-modal-title" className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-8">
                 <div className="mb-6 flex items-center justify-between">
                     <h2 id="lead-modal-title" className="text-2xl font-bold">{lead ? "Edit Lead" : "Create New Lead"}</h2>
                     <button type="button" onClick={onClose} aria-label="Close lead form"><X/></button>

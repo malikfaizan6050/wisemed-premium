@@ -13,11 +13,17 @@ import { LEADS_COLLECTION } from "@/lib/crmCollections";
 // alert, so a lead is chased again only after this long.
 const REMINDER_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000;
 
+/**
+ * Only the shared secret authorises this sweep.
+ *
+ * `x-vercel-cron` used to be enough on its own, but any client can set a
+ * header: sending it was all it took for an anonymous caller to make the CRM
+ * email every lead owner and stamp every overdue lead. Vercel Cron sends the
+ * `CRON_SECRET` value as a bearer token, so the secret alone identifies a
+ * genuine scheduled run. Set CRON_SECRET in the Vercel project settings, or
+ * the schedule in vercel.json cannot authenticate and the sweep never runs.
+ */
 function isAuthorized(request:NextRequest) {
-    // Vercel Cron sends this header on scheduled invocations.
-    const cronHeader = request.headers.get("x-vercel-cron");
-    if(cronHeader) return true;
-
     const configured = process.env.CRON_SECRET;
     if(!configured) return false;
 

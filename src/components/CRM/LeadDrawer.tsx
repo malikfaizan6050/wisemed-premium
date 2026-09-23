@@ -4,7 +4,8 @@ import { useEffect,useState } from "react";
 import { Mail,MessageCircle,Pencil,Phone,Trash2,X } from "lucide-react";
 import type { Lead } from "@/types/crm";
 import { isLeadOverdue,toDateInputValue } from "@/lib/leadDates";
-import { LEAD_STAGE_OPTIONS } from "@/lib/leadStages";
+import { LEAD_STAGE_OPTIONS,getLeadStageLabel } from "@/lib/leadStages";
+import { LEAD_PRIORITY_OPTIONS } from "@/lib/leadPriorities";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import LeadDrawerDetails,{ LeadScoreCard } from "./LeadDrawerDetails";
 import LeadDrawerFollowUp,{ LeadNotes } from "./LeadDrawerFollowUp";
@@ -23,11 +24,7 @@ interface Props {
 
 const pipelineOptions = LEAD_STAGE_OPTIONS;
 
-const priorityOptions = [
-    ["critical","Critical"],
-    ["high","High"],
-    ["standard","Standard"]
-] as const;
+const priorityOptions = LEAD_PRIORITY_OPTIONS;
 
 export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
     const { hasPermission } = useCRMUser();
@@ -92,7 +89,10 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
     };
 
     const fullName = `${lead.firstName || ""} ${lead.lastName || ""}`.trim() || "Healthcare Provider";
-    const whatsappPhone = lead.phone.replace(/\D/g,"");
+    // Legacy records predate the field being written on every path, so this is
+    // not guaranteed to be a string; reading it directly took the whole drawer
+    // down with a TypeError.
+    const whatsappPhone = (lead.phone ?? "").replace(/\D/g,"");
 
     const assignOwner = async() => {
         if(!selectedOwnerId){ setFeedback({ message:"Select a salesperson first",tone:"error" });return; }
@@ -168,7 +168,7 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
                 </div>
                 <div className="mt-4"><FeedbackMessage message={feedback.message} tone={feedback.tone}/></div>
 
-                <SelectField label="RCM Pipeline" value={lead.status} options={pipelineOptions} onChange={(value)=>updateFields({ status:value })}/>
+                <SelectField label="RCM Pipeline" value={lead.status} options={pipelineOptions} unknownLabel={getLeadStageLabel(lead.status)} onChange={(value)=>updateFields({ status:value })}/>
                 <SelectField label="Opportunity Priority" value={lead.priority} options={priorityOptions} onChange={(value)=>updateFields({ priority:value })}/>
 
                 <div className="mt-6 rounded-3xl border bg-slate-50 p-5">
@@ -196,6 +196,19 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
     );
 }
 
-function SelectField({ label,value,options,onChange }:{ label:string; value:string; options:readonly (readonly [string,string])[]; onChange:(value:string)=>void }) {
-    return <div className="mt-6"><label className="text-xs font-semibold uppercase text-slate-500">{label}</label><select value={value} onChange={(event)=>onChange(event.target.value)} className="mt-2 w-full rounded-xl border px-4 py-3">{options.map(([optionValue,optionLabel])=><option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></div>;
+/**
+ * A value the option list does not contain is added to it rather than dropped.
+ *
+ * A `<select>` whose value matches no option falls back to showing the first
+ * one, so a lead carrying a retired stage — or a priority written before the
+ * API validated it — displayed as "New Inquiry" and "Critical". The lead
+ * looked like something it was not, and saving any other field silently
+ * confirmed the wrong value.
+ */
+function SelectField({ label,value,options,unknownLabel,onChange }:{ label:string; value:string; options:readonly (readonly [string,string])[]; unknownLabel?:string; onChange:(value:string)=>void }) {
+    const known = options.some(([optionValue])=>optionValue === value);
+    const allOptions = known || !value
+        ? options
+        : [[value,unknownLabel ?? `${value} (unrecognised)`] as const,...options];
+    return <div className="mt-6"><label className="text-xs font-semibold uppercase text-slate-500">{label}</label><select value={value ?? ""} onChange={(event)=>onChange(event.target.value)} className="mt-2 w-full rounded-xl border px-4 py-3">{allOptions.map(([optionValue,optionLabel])=><option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></div>;
 }

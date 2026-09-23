@@ -6,6 +6,7 @@ import {
     findDuplicateLead,
     normalizeEmail,
     normalizeNpi,
+    normalizeOrganization,
     normalizePhone
 } from "@/lib/leadDuplicateDetection";
 import { recordActivity } from "@/services/activityService";
@@ -32,6 +33,8 @@ export interface PublicLeadIntake {
     billingChallenges:string[];
     contactConsent:boolean;
     source:string;
+    /** Set for enquiries arriving over WhatsApp, so the thread can be traced. */
+    whatsappNumber?:string;
 }
 
 export type LeadIntakeResult =
@@ -147,6 +150,8 @@ export async function createPublicLead(input:PublicLeadIntake):Promise<LeadIntak
         emailNormalized:normalizeEmail(input.email),
         phoneNormalized:normalizePhone(input.phone),
         npiNormalized:normalizeNpi(input.npi),
+        organizationNormalized:normalizeOrganization(input.organization),
+        ...(input.whatsappNumber ? { whatsappNumber:input.whatsappNumber } : {}),
         assignedTo:null,
         ownerId:null,
         ownerSnapshot:null,

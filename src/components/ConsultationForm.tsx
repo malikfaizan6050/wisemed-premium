@@ -11,6 +11,8 @@ ChevronDown
 } from "lucide-react";
 
 import {
+useEffect,
+useRef,
 useState
 } from "react";
 
@@ -129,6 +131,49 @@ const [error,setError]=useState("");
 const {
 executeRecaptcha
 }=useGoogleReCaptcha();
+
+
+
+const challengeRef=useRef<HTMLDivElement|null>(null);
+
+
+
+// The challenge list had no way to dismiss it: it stayed open over the
+// message box until the visitor pressed its own button again. Clicking
+// away or pressing Escape closes it, the way a dropdown is expected to.
+useEffect(()=>{
+
+if(!challengeOpen) return;
+
+
+const onPointerDown=(event:MouseEvent|TouchEvent)=>{
+
+if(!challengeRef.current?.contains(event.target as Node)) setChallengeOpen(false);
+
+};
+
+
+const onKeyDown=(event:KeyboardEvent)=>{
+
+if(event.key==="Escape") setChallengeOpen(false);
+
+};
+
+
+document.addEventListener("mousedown",onPointerDown);
+document.addEventListener("touchstart",onPointerDown);
+document.addEventListener("keydown",onKeyDown);
+
+
+return ()=>{
+
+document.removeEventListener("mousedown",onPointerDown);
+document.removeEventListener("touchstart",onPointerDown);
+document.removeEventListener("keydown",onKeyDown);
+
+};
+
+},[challengeOpen]);
 
 
 
@@ -400,6 +445,9 @@ setContactConsent(false);
 
 
 setSelectedChallenges([]);
+
+
+setChallengeOpen(false);
 
 
 
@@ -853,7 +901,7 @@ Other
 {/* MULTI SELECT */}
 
 
-<div className="relative">
+<div className="relative" ref={challengeRef}>
 
 
 <button
@@ -863,6 +911,10 @@ type="button"
 onClick={()=>
 setChallengeOpen(!challengeOpen)
 }
+
+aria-expanded={challengeOpen}
+
+aria-haspopup="listbox"
 
 className="
 flex

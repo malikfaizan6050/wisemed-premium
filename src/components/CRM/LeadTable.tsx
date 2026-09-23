@@ -16,6 +16,8 @@ import {
 
 import { isLeadOverdue, toLeadDate } from "@/lib/leadDates";
 
+import { getLeadStageLabel, isLeadStage, getLeadStage } from "@/lib/leadStages";
+
 
 
 interface Props {
@@ -30,94 +32,45 @@ interface Props {
 
 
 
-const stageLabels: Record<string,string> = {
-
-
-  new_inquiry:
-    "New Inquiry",
-
-
-  initial_review:
-    "Initial Review",
-
-
-  discovery_scheduled:
-    "Discovery Scheduled",
-
-
-  requirements_collected:
-    "Requirements Collected",
-
-
-  proposal_sent:
-    "Proposal Sent",
-
-
-  contract_review:
-    "Contract Review",
-
-
-  onboarding:
-    "Onboarding",
-
-
-  active_client:
-    "Active Client",
-
-
-  lost:
-    "Lost Opportunity"
-
-};
-
-
-
-
-
-
+// Colours only. The labels and the stage list itself come from lib/leadStages,
+// which is the single source of truth: this file used to carry its own copy of
+// both, so a stage renamed there kept its old name here, `contract_review` was
+// tinted a different colour from the pipeline board, and a lead sitting in a
+// retired stage showed the raw database key instead of a readable label.
 const stageStyles: Record<string,string> = {
 
-
-  new_inquiry:
+  blue:
     "bg-blue-50 text-blue-700 border-blue-100",
 
-
-  initial_review:
+  indigo:
     "bg-indigo-50 text-indigo-700 border-indigo-100",
 
-
-  discovery_scheduled:
+  purple:
     "bg-purple-50 text-purple-700 border-purple-100",
 
-
-  requirements_collected:
+  cyan:
     "bg-cyan-50 text-cyan-700 border-cyan-100",
 
-
-  proposal_sent:
+  orange:
     "bg-orange-50 text-orange-700 border-orange-100",
 
+  amber:
+    "bg-amber-50 text-amber-700 border-amber-100",
 
-  contract_review:
-    "bg-yellow-50 text-yellow-700 border-yellow-100",
-
-
-  onboarding:
+  green:
     "bg-green-50 text-green-700 border-green-100",
 
-
-  active_client:
+  emerald:
     "bg-emerald-50 text-emerald-700 border-emerald-100",
 
-
-  lost:
+  red:
     "bg-red-50 text-red-700 border-red-100"
 
 };
 
 
-
-
+const unknownStageStyle =
+  "bg-slate-100 text-slate-600 border-slate-200";
 
 
 const priorityStyles: Record<string,string> = {
@@ -280,8 +233,9 @@ hover:bg-blue-50/40
 
 <div>
 
-<p
+<span
 className="
+block
 font-semibold
 text-slate-900
 "
@@ -292,12 +246,13 @@ text-slate-900
 "Healthcare Provider"
 }
 
-</p>
+</span>
 
 
-<p
+<span
 className="
 mt-1
+block
 text-xs
 text-slate-500
 "
@@ -305,7 +260,7 @@ text-slate-500
 
 {lead.ownerSnapshot?.displayName ? `Owner: ${lead.ownerSnapshot.displayName}` : "Unassigned"}
 
-</p>
+</span>
 
 
 </div>
@@ -318,21 +273,12 @@ text-slate-500
 {/* PRACTICE */}
 
 
-<div
+<div className="text-sm font-medium text-blue-600">
 
-className="
-flex
-items-center
-gap-2
-text-sm
-font-medium
-text-blue-600
-"
 
->
+<span className="flex items-center gap-2">
 
 <Building2 size={15}/>
-
 
 <span className="truncate max-w-[150px]">
 
@@ -343,10 +289,12 @@ lead.organization ||
 
 </span>
 
+</span>
+
 {lead.nextAction &&
-<p className="mt-1 max-w-[150px] truncate text-xs text-slate-500">
+<span className="mt-1 block max-w-[150px] truncate text-xs text-slate-500">
 {lead.nextAction}
-</p>
+</span>
 }
 
 
@@ -396,24 +344,23 @@ px-3
 py-1
 text-xs
 font-semibold
-${stageStyles[status] || stageStyles.new_inquiry}
+${isLeadStage(status) ? stageStyles[getLeadStage(status).color] : unknownStageStyle}
 `}
 
 >
 
 
 {
-stageLabels[status] ||
-status
+getLeadStageLabel(status)
 }
 
 
 </span>
 
 {overdue &&
-<p className="mt-1 text-xs font-semibold text-red-600">
+<span className="mt-1 block text-xs font-semibold text-red-600">
 Overdue{dueDate ? ` · ${dueDate.toLocaleDateString()}` : ""}
-</p>
+</span>
 }
 
 
@@ -442,9 +389,10 @@ gap-2
 <div>
 
 
-<p
+<span
 
 className="
+block
 font-bold
 text-blue-600
 "
@@ -456,7 +404,7 @@ score
 }
 
 
-</p>
+</span>
 
 
 
@@ -484,7 +432,7 @@ bg-blue-600
 
 style={{
 
-width:`${score}%`
+width:`${Math.max(0,Math.min(100,Number(score) || 0))}%`
 
 }}
 

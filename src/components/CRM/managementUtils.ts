@@ -1,15 +1,13 @@
+import { toLeadDate } from "@/lib/leadDates";
+
+// Every stored date shape is decoded by toLeadDate, including the
+// `{_seconds,_nanoseconds}` form a Firestore Timestamp takes over the wire.
+// This used to carry its own partial copy of that logic.
 export function formatCRMDate(value:unknown,fallback="—") {
-    if(!value) return fallback;
-    if(value instanceof Date) return value.getTime()<=0 ? fallback : value.toLocaleDateString();
-    if(typeof value === "string"){
-        const date = new Date(value);
-        return Number.isNaN(date.getTime())||date.getTime()<=0 ? fallback : date.toLocaleDateString();
-    }
-    if(typeof value === "object"){
-        if("seconds" in value && typeof value.seconds === "number") return value.seconds<=0 ? fallback : new Date(value.seconds*1000).toLocaleDateString();
-        if("_seconds" in value && typeof value._seconds === "number") return value._seconds<=0 ? fallback : new Date(value._seconds*1000).toLocaleDateString();
-    }
-    return fallback;
+    const date = toLeadDate(value);
+    // The epoch is the placeholder written for legacy records with no real
+    // date, so it is shown as "unknown" rather than as 1 January 1970.
+    return date && date.getTime() > 0 ? date.toLocaleDateString() : fallback;
 }
 
 export function getApiError(result:unknown,fallback:string) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
 import { extractLead } from "@/lib/leadExtractor";
+import { createPublicLead } from "@/services/leadIntakeService";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 
@@ -117,29 +118,34 @@ await extractLead(question);
 
 if(
 leadData &&
-leadData.email &&
-leadData.name
+typeof leadData.email === "string" && leadData.email.trim() &&
+typeof leadData.name === "string" && leadData.name.trim()
 ){
 
-    const leadResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL}/api/leads`,
-        {
-            method:"POST",
+    // Written through the intake service rather than by calling this app's own
+    // HTTP API. That round trip needed NEXT_PUBLIC_APP_URL to be set and a
+    // service API key to be presented, and it reported a duplicate enquiry
+    // back to the visitor as "AI service failed" — telling somebody already on
+    // file that the assistant was broken.
+    const nameParts = leadData.name.trim().split(/\s+/);
 
-            headers:{
-                "Content-Type":"application/json",
-                "X-CRM-API-Key":process.env.WISEMED_CRM_API_KEY ?? ""
-            },
-
-            body:JSON.stringify(
-                leadData
-            )
-        }
-    );
-
-    if(!leadResponse.ok){
-      throw new Error("Lead creation failed");
-    }
+    const result = await createPublicLead({
+        firstName:nameParts[0] ?? "",
+        lastName:nameParts.slice(1).join(" "),
+        email:leadData.email.trim(),
+        phone:typeof leadData.phone === "string" ? leadData.phone.trim() : "",
+        organization:typeof leadData.organization === "string" ? leadData.organization.trim() : "",
+        npi:"",
+        specialty:typeof leadData.specialty === "string" ? leadData.specialty.trim() : "",
+        claimsVolume:0,
+        currentBillingMethod:"",
+        ehrSystem:"",
+        message:question,
+        billingChallenges:[],
+        // Volunteering contact details to the assistant is the opt-in.
+        contactConsent:true,
+        source:"ai_chat"
+    });
 
 
     return NextResponse.json({
@@ -147,7 +153,9 @@ leadData.name
         answer:
         "Thank you. Your information has been submitted. Our WiseMed Billing specialist will contact you shortly.",
 
-        leadCreated:true
+        // A duplicate means they already reached us, which from the visitor's
+        // side is the same outcome, so it is answered the same way.
+        leadCreated:result.ok
 
     });
 

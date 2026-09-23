@@ -3,6 +3,7 @@
 import { useMemo,useState } from "react";
 import { Download,Trash2 } from "lucide-react";
 import { LEAD_STAGE_KEYS,getLeadStageLabel } from "@/lib/leadStages";
+import { LEAD_PRIORITIES } from "@/lib/leadPriorities";
 import { auth } from "@/lib/firebase";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import { toLeadDate } from "@/lib/leadDates";
@@ -16,7 +17,7 @@ import type { AssignableCRMUser } from "@/types/crm-auth";
 import AsyncError from "@/components/CRM/AsyncError";
 
 const statuses = LEAD_STAGE_KEYS;
-const priorities = ["critical","high","standard"];
+const priorities = LEAD_PRIORITIES;
 
 export default function MyLeadsPage() {
     const { leads,loading,error,refresh } = useDashboardLeads();

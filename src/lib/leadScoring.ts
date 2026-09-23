@@ -1,4 +1,4 @@
-interface LeadScoreInput {
+export interface LeadScoreInput {
   email?: string;
   phone?: string;
   organization?: string;

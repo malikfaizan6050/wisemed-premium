@@ -3,6 +3,9 @@ import { siteUrl } from "@/lib/seo";
 
 const pages=[
     { path:"",changeFrequency:"weekly",priority:1 },
+    // The consultation form is the page every call to action on the site
+    // points at, and it was the one page missing from the sitemap.
+    { path:"/consultation",changeFrequency:"monthly",priority:0.9 },
     { path:"/services",changeFrequency:"monthly",priority:0.9 },
     { path:"/solutions",changeFrequency:"monthly",priority:0.9 },
     { path:"/about",changeFrequency:"monthly",priority:0.8 },
