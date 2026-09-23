@@ -98,9 +98,23 @@ export async function getRoleById(id:string):Promise<Role | null> {
     return snapshot.exists ? mapRole(snapshot.id,snapshot.data()) : null;
 }
 
+/**
+ * Every role, ordered by name.
+ *
+ * Sorted after reading rather than with `orderBy("name")`. Firestore leaves a
+ * document out of an ordered query when it has no value for the ordering
+ * field, so a role document written without a `name` disappeared from this
+ * list entirely — and with it from the roles screen, from the new-lead
+ * watcher alerts, and from the analytics role map, where its holders were
+ * silently treated as having no role at all. mapRole already defaults a
+ * missing name, which that query never gave it the chance to do.
+ */
 export async function listRoles():Promise<Role[]> {
-    const snapshot = await db.collection("roles").orderBy("name").get();
-    return snapshot.docs.map((document)=>mapRole(document.id,document.data())).filter((role):role is Role=>role !== null);
+    const snapshot = await db.collection("roles").get();
+    return snapshot.docs
+        .map((document)=>mapRole(document.id,document.data()))
+        .filter((role):role is Role=>role !== null)
+        .sort((first,second)=>first.name.localeCompare(second.name));
 }
 
 export async function roleNameExists(name:string,excludingId?:string) {

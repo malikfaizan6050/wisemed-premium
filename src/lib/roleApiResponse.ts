@@ -9,7 +9,10 @@ export function roleApiError(error:unknown) {
 }
 
 export async function readRoleJson(request:Request) {
-    const body:unknown = await request.json();
+    // See readJsonObject: unparseable JSON is the caller's error, not a 500.
+    const body:unknown = await request.json().catch(()=>{
+        throw new RoleServiceError("Invalid request body",400,"invalid_body");
+    });
     if(!body || typeof body !== "object" || Array.isArray(body)){
         throw new RoleServiceError("Invalid request body",400,"invalid_body");
     }

@@ -12,6 +12,12 @@ import type { DuplicateStrategy,ImportHistoryEntry,ImportLeadField,ImportLeadRec
 type Step="upload"|"mapping"|"preview"|"complete";
 type SourceRow=Record<string,unknown>;
 
+// Matches MAX_IMPORT_ROWS in the import API. The limit was stated on the
+// upload panel but only enforced on the server, so an oversized file was fully
+// parsed and mapped in the browser and posted in one body before coming back
+// rejected.
+const MAX_IMPORT_ROWS=2000;
+
 export default function ImportLeadsPage(){
     const [step,setStep]=useState<Step>("upload");
     const [fileName,setFileName]=useState("");
@@ -55,6 +61,7 @@ export default function ImportLeadsPage(){
         const cleanRows=parsedRows.filter((row)=>Object.values(row).some((value)=>String(value??"").trim()));
         const discovered=Array.from(new Set(cleanRows.flatMap((row)=>Object.keys(row).map((header)=>header.trim())).filter(Boolean)));
         if(!cleanRows.length||!discovered.length) throw new Error("The selected file does not contain any data rows.");
+        if(cleanRows.length>MAX_IMPORT_ROWS) throw new Error(`The selected file has ${cleanRows.length.toLocaleString()} rows. Split it into files of ${MAX_IMPORT_ROWS.toLocaleString()} rows or fewer.`);
         setFileName(name);setHeaders(discovered);setRows(cleanRows);
         setMapping(Object.fromEntries(discovered.map((header)=>[header,suggestImportField(header)])));
         setStep("upload");setMessage({ text:"",tone:"error" });

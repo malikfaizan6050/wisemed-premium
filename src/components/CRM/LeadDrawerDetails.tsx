@@ -6,7 +6,10 @@ function SectionTitle({ children,icon:Icon }:{ children:React.ReactNode; icon:ty
 }
 
 export function LeadScoreCard({ lead }:{ lead:Lead }) {
-    const score = Number(lead.opportunityScore ?? lead.leadScore ?? 0);
+    // Clamped: a legacy record can carry a score outside 0-100, or a string
+    // that parses to NaN, which renders as an invalid CSS width.
+    const rawScore = Number(lead.opportunityScore ?? lead.leadScore ?? 0);
+    const score = Number.isFinite(rawScore) ? Math.max(0,Math.min(100,rawScore)) : 0;
     return (
         <div className="mt-6 rounded-3xl border border-blue-100 bg-blue-50 p-5">
             <div className="flex items-center justify-between">

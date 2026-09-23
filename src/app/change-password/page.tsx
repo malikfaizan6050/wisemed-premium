@@ -16,13 +16,19 @@ export default function ChangePasswordPage(){
 
     useEffect(()=>onAuthStateChanged(auth,async(user)=>{
         if(!user){ router.replace("/login");return; }
-        const response=await authenticatedFetch("/api/users/me");
-        const result:unknown=await response.json().catch(()=>null);
-        const code=result&&typeof result==="object"&&"code" in result?result.code:null;
-        if(response.ok){ router.replace("/dashboard");return; }
-        if(code==="temporary_password_expired") setError("Temporary password expired. Ask an administrator to regenerate it.");
-        else if(code!=="password_change_required") setError("Unable to verify your CRM account.");
-        setLoading(false);
+        // The check used to run unguarded, so a dropped connection rejected the
+        // promise, never cleared `loading`, and left the page on "Checking
+        // account..." for good - with no message and no way to retry.
+        try {
+            const response=await authenticatedFetch("/api/users/me");
+            const result:unknown=await response.json().catch(()=>null);
+            const code=result&&typeof result==="object"&&"code" in result?result.code:null;
+            if(response.ok){ router.replace("/dashboard");return; }
+            if(code==="temporary_password_expired") setError("Temporary password expired. Ask an administrator to regenerate it.");
+            else if(code!=="password_change_required") setError("Unable to verify your CRM account.");
+        }
+        catch { setError("Could not check your CRM account. Check your connection and try again."); }
+        finally { setLoading(false); }
     }),[router]);
 
     const submit=async(event:React.FormEvent)=>{
