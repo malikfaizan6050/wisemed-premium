@@ -152,12 +152,15 @@ export default function LeadTable({
 
 
 
+// overflow-x-auto plus a min-width on the rows lets the table scroll
+// sideways on narrow screens instead of crushing eight columns into a
+// phone's width, matching how CRMTable handles the same problem.
 return (
 
 <div
 className="
 mt-6
-overflow-hidden
+overflow-x-auto
 rounded-3xl
 border
 border-slate-200
@@ -173,6 +176,7 @@ shadow-sm
 className="
 grid
 grid-cols-8
+min-w-[960px]
 items-center
 border-b
 bg-slate-50
@@ -256,6 +260,7 @@ group
 grid
 grid-cols-8
 w-full
+min-w-[960px]
 items-center
 border-b
 px-6
