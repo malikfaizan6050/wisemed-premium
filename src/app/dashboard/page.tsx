@@ -59,7 +59,7 @@ export default function Dashboard() {
             <DashboardHeader
                 canCreateLead={mayCreateLead}
                 onCreate={()=>{ setEditingLead(null);setModalOpen(true);setFeedback(""); }}
-                onLogout={async()=>{ await signOut(auth);router.replace("/login"); }}
+                onLogout={async()=>{ await signOut(auth);router.replace("/"); }}
             />
 
             <div className="mt-6">{accessDeniedMessage ? <FeedbackMessage message={accessDeniedMessage}/> : error ? <AsyncError message={error} onRetry={()=>void refresh()}/> : <FeedbackMessage message={feedback} tone="success"/>}</div>

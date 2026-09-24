@@ -3,6 +3,7 @@ import "server-only";
 import type { Lead } from "@/types/crm";
 import { claimNotificationEmail,completeNotificationEmail } from "@/repositories/notificationRepository";
 import { escapeEmailHtml,sendEmail } from "@/services/emailService";
+import { crmLoginUrl } from "@/lib/crmUrl";
 
 interface LeadAssignmentEmailInput {
     notificationId:string;
@@ -15,7 +16,7 @@ interface LeadAssignmentEmailInput {
 export async function sendLeadAssignmentEmailOnce(input:LeadAssignmentEmailInput) {
     if(!await claimNotificationEmail(input.notificationId)) return false;
     const providerName=`${input.lead.firstName??""} ${input.lead.lastName??""}`.trim()||"Not provided";
-    const loginUrl=`${(process.env.NEXT_PUBLIC_APP_URL??"http://localhost:3000").replace(/\/$/,"")}/login`;
+    const loginUrl=crmLoginUrl();
     const fields=[
         ["Employee",input.employee.displayName],
         ["Lead provider",providerName],

@@ -6,6 +6,7 @@ import { recordActivity } from "@/services/activityService";
 import { getUserById } from "@/repositories/userRepository";
 import { escapeEmailHtml,sendEmail } from "@/services/emailService";
 import { isLeadOverdue,toLeadDate } from "@/lib/leadDates";
+import { crmLoginUrl } from "@/lib/crmUrl";
 import { getLeadStageLabel } from "@/lib/leadStages";
 import { LEADS_COLLECTION } from "@/lib/crmCollections";
 
@@ -96,7 +97,7 @@ async function runOverdueSweep(request:NextRequest) {
             }).catch(()=>null);
 
             if(owner.email){
-                const loginUrl=`${(process.env.NEXT_PUBLIC_APP_URL??"http://localhost:3000").replace(/\/$/,"")}/login`;
+                const loginUrl=crmLoginUrl();
                 const lines=[
                     `Hello ${owner.displayName},`,
                     `${providerName} was due for follow-up on ${dueLabel} and has not been moved on.`,

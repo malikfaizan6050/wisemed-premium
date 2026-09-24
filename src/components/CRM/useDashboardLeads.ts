@@ -29,7 +29,7 @@ export function useDashboardLeads() {
     },[]);
 
     useEffect(()=>onAuthStateChanged(auth,(user)=>{
-        if(!user){ router.replace("/login");return; }
+        if(!user){ router.replace("/");return; }
         setCheckingAuth(false);
         void refresh();
     }),[router,refresh]);

@@ -36,7 +36,7 @@ export default function ForgotPasswordPage(){
                 </label>
                 <button disabled={loading} type="submit" className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">{loading?"Sending...":"Send reset link"}</button>
             </form>}
-            <Link href="/login" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700"><ArrowLeft size={16}/>Back to login</Link>
+            <Link href="/" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700"><ArrowLeft size={16}/>Back to login</Link>
         </div>
     </main>;
 }

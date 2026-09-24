@@ -15,7 +15,7 @@ export default function ChangePasswordPage(){
     const [saving,setSaving]=useState(false);
 
     useEffect(()=>onAuthStateChanged(auth,async(user)=>{
-        if(!user){ router.replace("/login");return; }
+        if(!user){ router.replace("/");return; }
         // The check used to run unguarded, so a dropped connection rejected the
         // promise, never cleared `loading`, and left the page on "Checking
         // account..." for good - with no message and no way to retry.
@@ -45,7 +45,7 @@ export default function ChangePasswordPage(){
                 throw new Error(message);
             }
             await signOut(auth);
-            router.replace("/login");
+            router.replace("/");
         }
         catch(error:unknown){ setError(error instanceof Error?error.message:"Unable to change password"); }
         finally { setSaving(false); }
