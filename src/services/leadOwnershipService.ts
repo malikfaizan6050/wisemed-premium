@@ -4,10 +4,20 @@ import { canAssignLead } from "@/lib/leadOwnership";
 import { getRoleById } from "@/repositories/roleRepository";
 import { assignLeadOwner,getLeadById } from "@/repositories/leadRepository";
 import { getUserById } from "@/repositories/userRepository";
-import type { CurrentCRMUser } from "@/types/crm-auth";
-import { isManager,isSalesUser } from "@/lib/roleClassification";
-import { sendLeadAssignmentEmailOnce } from "@/services/leadAssignmentEmailService";
+import type { CRMUser,CurrentCRMUser } from "@/types/crm-auth";
+import type { Lead } from "@/types/crm";
+import { isAdmin,isManager,isSalesUser } from "@/lib/roleClassification";
+import { sendBulkLeadAssignmentEmailOnce,sendLeadAssignmentEmailOnce } from "@/services/leadAssignmentEmailService";
 import { canAccessLeadForUser,getLeadVisibilityScope } from "@/services/leadVisibilityService";
+
+// One request may not move more leads than this. The cap keeps a bulk
+// assignment inside the serverless function's time budget and bounds how much
+// a mistaken click can rewrite in one go.
+export const BULK_ASSIGN_LIMIT = 200;
+
+// Firestore takes each assignment as its own transaction, so a handful run at
+// once; going wider adds contention without finishing meaningfully sooner.
+const BULK_ASSIGN_CONCURRENCY = 5;
 
 export class LeadOwnershipError extends Error {
     constructor(message:string,public readonly status:number,public readonly code:string) {
@@ -15,22 +25,25 @@ export class LeadOwnershipError extends Error {
     }
 }
 
-export async function assignLead(
-    leadId:string,
-    ownerId:string,
-    actor:CurrentCRMUser
-) {
-    if(!canAssignLead(actor)){
-        throw new LeadOwnershipError("Insufficient permissions",403,"insufficient_permissions");
-    }
+export interface BulkAssignFailure {
+    leadId:string;
+    error:string;
+    code:string;
+}
+
+type AssignmentOutcome =
+    | { ok:true; result:NonNullable<Awaited<ReturnType<typeof assignLeadOwner>>> }
+    | { ok:false; failure:BulkAssignFailure };
+
+/**
+ * Resolves and vets the salesperson a lead is about to be handed to. Shared by
+ * the single and bulk paths so both reject the same owners for the same
+ * reasons, and so a bulk request pays for these lookups once rather than once
+ * per lead.
+ */
+async function resolveAssignmentOwner(ownerId:string,actor:CurrentCRMUser):Promise<CRMUser> {
     if(!ownerId.trim()){
         throw new LeadOwnershipError("Owner is required",400,"invalid_owner");
-    }
-
-    const lead=await getLeadById(leadId);
-    if(!lead) throw new LeadOwnershipError("Lead not found",404,"lead_not_found");
-    if(!await canAccessLeadForUser(actor,lead,"read")){
-        throw new LeadOwnershipError("You cannot assign this lead",403,"lead_access_denied");
     }
 
     const owner = await getUserById(ownerId.trim());
@@ -47,6 +60,20 @@ export async function assignLead(
             throw new LeadOwnershipError("Sales managers can only assign leads within their team",403,"owner_outside_team");
         }
     }
+    return owner;
+}
+
+/**
+ * Moves one lead onto an already vetted owner. No email is sent here: the
+ * caller decides whether that is one message per lead or a single summary for
+ * a whole batch.
+ */
+async function applyAssignment(leadId:string,owner:CRMUser,actor:CurrentCRMUser) {
+    const lead=await getLeadById(leadId);
+    if(!lead) throw new LeadOwnershipError("Lead not found",404,"lead_not_found");
+    if(!await canAccessLeadForUser(actor,lead,"read")){
+        throw new LeadOwnershipError("You cannot assign this lead",403,"lead_access_denied");
+    }
 
     const result = await assignLeadOwner({
         leadId,
@@ -55,22 +82,123 @@ export async function assignLead(
         actorDisplayName:actor.displayName
     });
     if(!result) throw new LeadOwnershipError("Lead not found",404,"lead_not_found");
+    return result;
+}
+
+function toAssignedDate(value:unknown):Date {
+    if(value instanceof Date) return value;
+    if(value&&typeof value==="object"&&"toDate" in value&&typeof (value as { toDate:unknown }).toDate==="function"){
+        return (value as { toDate:()=>Date }).toDate();
+    }
+    return new Date();
+}
+
+export async function assignLead(
+    leadId:string,
+    ownerId:string,
+    actor:CurrentCRMUser
+) {
+    if(!canAssignLead(actor)){
+        throw new LeadOwnershipError("Insufficient permissions",403,"insufficient_permissions");
+    }
+
+    const owner = await resolveAssignmentOwner(ownerId,actor);
+    const result = await applyAssignment(leadId,owner,actor);
     let emailSent=false;
     if(result.notificationId){
-        const assignedAt=result.assignedAt instanceof Date
-            ? result.assignedAt
-            : result.assignedAt&&typeof result.assignedAt==="object"&&"toDate" in result.assignedAt&&typeof result.assignedAt.toDate==="function"
-                ? result.assignedAt.toDate()
-                : new Date();
         emailSent=await sendLeadAssignmentEmailOnce({
             notificationId:result.notificationId,
             employee:{ email:owner.email,displayName:owner.displayName },
             lead:result.lead,
             assignedBy:actor.displayName,
-            assignedAt
+            assignedAt:toAssignedDate(result.assignedAt)
         }).catch(()=>false);
     }
     const { lead:_lead,...assignment }=result;
     void _lead;
     return { ...assignment,emailSent };
+}
+
+/**
+ * Hands a whole selection of leads to one salesperson.
+ *
+ * Administrators only: a sales manager assigning in bulk would need every lead
+ * in the selection checked against their team, and the screen that offers this
+ * is admin-only, so the service refuses the role outright rather than half
+ * supporting it.
+ *
+ * A lead that cannot be moved - deleted between listing and submitting, or
+ * outside the actor's reach - is reported in `failures` instead of aborting the
+ * rest, so one bad id in a selection of two hundred does not undo the other
+ * hundred and ninety-nine. The owner receives a single summary email for the
+ * batch rather than one message per lead, which would otherwise arrive as
+ * hundreds of near-identical emails.
+ */
+export async function bulkAssignLeads(
+    leadIds:readonly string[],
+    ownerId:string,
+    actor:CurrentCRMUser
+) {
+    if(!isAdmin(actor.role)||!canAssignLead(actor)){
+        throw new LeadOwnershipError("Insufficient permissions",403,"insufficient_permissions");
+    }
+
+    const uniqueIds=Array.from(new Set(leadIds.map((id)=>id.trim()).filter(Boolean)));
+    if(uniqueIds.length===0){
+        throw new LeadOwnershipError("Select at least one lead",400,"no_leads_selected");
+    }
+    if(uniqueIds.length>BULK_ASSIGN_LIMIT){
+        throw new LeadOwnershipError(`Assign at most ${BULK_ASSIGN_LIMIT} leads at a time`,400,"too_many_leads");
+    }
+
+    const owner=await resolveAssignmentOwner(ownerId,actor);
+    const assignedLeads:Lead[]=[];
+    const notificationIds:string[]=[];
+    const failures:BulkAssignFailure[]=[];
+    let assigned=0;
+    let unchanged=0;
+    let assignedAt=new Date();
+
+    for(let index=0;index<uniqueIds.length;index+=BULK_ASSIGN_CONCURRENCY){
+        const batch=uniqueIds.slice(index,index+BULK_ASSIGN_CONCURRENCY);
+        const results=await Promise.all(batch.map(async(leadId):Promise<AssignmentOutcome>=>{
+            try { return { ok:true,result:await applyAssignment(leadId,owner,actor) }; }
+            catch(error){
+                return {
+                    ok:false,
+                    failure:error instanceof LeadOwnershipError
+                        ? { leadId,error:error.message,code:error.code }
+                        : { leadId,error:"Lead assignment failed",code:"assignment_failed" }
+                };
+            }
+        }));
+
+        for(const entry of results){
+            if(!entry.ok){ failures.push(entry.failure);continue; }
+            if(!entry.result.changed){ unchanged+=1;continue; }
+            assigned+=1;
+            assignedAt=toAssignedDate(entry.result.assignedAt);
+            assignedLeads.push(entry.result.lead);
+            if(entry.result.notificationId) notificationIds.push(entry.result.notificationId);
+        }
+    }
+
+    const emailSent=notificationIds.length>0
+        ? await sendBulkLeadAssignmentEmailOnce({
+            notificationIds,
+            employee:{ email:owner.email,displayName:owner.displayName },
+            leads:assignedLeads,
+            assignedBy:actor.displayName,
+            assignedAt
+        }).catch(()=>false)
+        : false;
+
+    return {
+        owner:{ id:owner.uid,displayName:owner.displayName,email:owner.email },
+        requested:uniqueIds.length,
+        assigned,
+        unchanged,
+        failures,
+        emailSent
+    };
 }
