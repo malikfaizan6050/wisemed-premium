@@ -93,7 +93,7 @@ export default function BulkAssignModal({ open,leads,onClose,onAssigned }:Props)
             if(!response.ok) throw new Error(getApiError(payload,"Bulk assignment failed"));
 
             const result = payload && typeof payload === "object" && "result" in payload && payload.result && typeof payload.result === "object"
-                ? payload.result as { assigned?:number; unchanged?:number; failures?:unknown[]; emailSent?:boolean }
+                ? payload.result as { assigned?:number; unchanged?:number; failures?:unknown[]; emailSent?:boolean; emailError?:string }
                 : null;
             const assigned = typeof result?.assigned === "number" ? result.assigned : 0;
             const unchanged = typeof result?.unchanged === "number" ? result.unchanged : 0;
@@ -101,9 +101,14 @@ export default function BulkAssignModal({ open,leads,onClose,onAssigned }:Props)
             const parts = [`${assigned} lead${assigned === 1 ? "" : "s"} assigned`];
             if(unchanged) parts.push(`${unchanged} already with this salesperson`);
             if(failed) parts.push(`${failed} could not be assigned`);
-            if(assigned && !result?.emailSent) parts.push("the notification email could not be delivered");
+            const emailFailed = Boolean(assigned) && !result?.emailSent;
+            if(emailFailed) parts.push("the notification email could not be delivered");
+            const emailError = typeof result?.emailError === "string" && result.emailError.trim() ? result.emailError : null;
 
-            setFeedback({ message:`${parts.join(", ")}.`,tone:failed || (assigned && !result?.emailSent) ? "error" : "success" });
+            setFeedback({
+                message:`${parts.join(", ")}.${emailFailed && emailError ? ` ${emailError}` : ""}`,
+                tone:failed || emailFailed ? "error" : "success"
+            });
             setSelected([]);
             onAssigned();
         }

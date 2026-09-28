@@ -111,10 +111,13 @@ export default function LeadDrawer({ lead,onClose,onUpdated,onEdit }:Props) {
                 : null;
             const changed=assignment?.changed===true;
             const emailSent=assignment?.emailSent===true;
+            const emailError=typeof assignment?.emailError==="string"&&assignment.emailError.trim()
+                ? assignment.emailError
+                : null;
             setFeedback(changed
                 ? emailSent
                     ? { message:"Salesperson assigned successfully. Notification and email sent.",tone:"success" }
-                    : { message:"Salesperson assigned and notified, but the email could not be delivered.",tone:"error" }
+                    : { message:`Salesperson assigned and notified, but the email could not be delivered.${emailError?` ${emailError}`:""}`,tone:"error" }
                 : { message:"This lead is already assigned to that salesperson.",tone:"success" });
             onUpdated?.();
         }

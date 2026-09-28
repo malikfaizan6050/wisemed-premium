@@ -8,6 +8,7 @@ import type { CRMUser,CurrentCRMUser } from "@/types/crm-auth";
 import type { Lead } from "@/types/crm";
 import { isAdmin,isManager,isSalesUser } from "@/lib/roleClassification";
 import { sendBulkLeadAssignmentEmailOnce,sendLeadAssignmentEmailOnce } from "@/services/leadAssignmentEmailService";
+import { describeEmailFailure } from "@/services/emailService";
 import { canAccessLeadForUser,getLeadVisibilityScope } from "@/services/leadVisibilityService";
 
 // One request may not move more leads than this. The cap keeps a bulk
@@ -105,18 +106,28 @@ export async function assignLead(
     const owner = await resolveAssignmentOwner(ownerId,actor);
     const result = await applyAssignment(leadId,owner,actor);
     let emailSent=false;
+    let emailError:string|null=null;
     if(result.notificationId){
-        emailSent=await sendLeadAssignmentEmailOnce({
-            notificationId:result.notificationId,
-            employee:{ email:owner.email,displayName:owner.displayName },
-            lead:result.lead,
-            assignedBy:actor.displayName,
-            assignedAt:toAssignedDate(result.assignedAt)
-        }).catch(()=>false);
+        try {
+            emailSent=await sendLeadAssignmentEmailOnce({
+                notificationId:result.notificationId,
+                employee:{ email:owner.email,displayName:owner.displayName },
+                lead:result.lead,
+                assignedBy:actor.displayName,
+                assignedAt:toAssignedDate(result.assignedAt)
+            });
+        }
+        catch(error){
+            // The assignment itself already succeeded, so the failure is
+            // reported rather than thrown - but it is no longer swallowed:
+            // the reason reaches both the server log and the screen.
+            emailError=describeEmailFailure(error);
+            console.error("Lead assignment email failed",emailError);
+        }
     }
     const { lead:_lead,...assignment }=result;
     void _lead;
-    return { ...assignment,emailSent };
+    return { ...assignment,emailSent,emailError };
 }
 
 /**
@@ -183,15 +194,23 @@ export async function bulkAssignLeads(
         }
     }
 
-    const emailSent=notificationIds.length>0
-        ? await sendBulkLeadAssignmentEmailOnce({
-            notificationIds,
-            employee:{ email:owner.email,displayName:owner.displayName },
-            leads:assignedLeads,
-            assignedBy:actor.displayName,
-            assignedAt
-        }).catch(()=>false)
-        : false;
+    let emailSent=false;
+    let emailError:string|null=null;
+    if(notificationIds.length>0){
+        try {
+            emailSent=await sendBulkLeadAssignmentEmailOnce({
+                notificationIds,
+                employee:{ email:owner.email,displayName:owner.displayName },
+                leads:assignedLeads,
+                assignedBy:actor.displayName,
+                assignedAt
+            });
+        }
+        catch(error){
+            emailError=describeEmailFailure(error);
+            console.error("Bulk lead assignment email failed",emailError);
+        }
+    }
 
     return {
         owner:{ id:owner.uid,displayName:owner.displayName,email:owner.email },
@@ -199,6 +218,7 @@ export async function bulkAssignLeads(
         assigned,
         unchanged,
         failures,
-        emailSent
+        emailSent,
+        emailError
     };
 }
