@@ -11,10 +11,6 @@ export async function getLeadById(id:string):Promise<Lead | null> {
     return { id:snapshot.id,...snapshot.data() } as Lead;
 }
 
-export async function listLeadsForUser(ownerId?:string,limit=500):Promise<Lead[]> {
-    return listLeadsForOwners(ownerId?[ownerId]:null,limit);
-}
-
 function createdAtMillis(data:FirebaseFirestore.DocumentData) {
     const createdAt=data.createdAt;
     if(createdAt instanceof Timestamp) return createdAt.toMillis();

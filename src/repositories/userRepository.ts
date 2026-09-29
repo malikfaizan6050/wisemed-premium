@@ -116,16 +116,6 @@ export async function updateUserProfile(uid:string,updates:UpdateUserProfileInpu
     await batch.commit();
 }
 
-export async function createUserActivity(audit:AuditInput) {
-    await db.collection("employee_activities").add({
-        ...audit,
-        actorType:"user",
-        type:audit.action,
-        entityType:"user",
-        createdAt:FieldValue.serverTimestamp()
-    });
-}
-
 export async function activateInvitedUser(uid:string) {
     const userReference = db.collection("users").doc(uid);
     const activityReference = db.collection("employee_activities").doc();

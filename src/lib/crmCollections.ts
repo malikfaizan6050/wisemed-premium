@@ -16,14 +16,3 @@ export const LEADS_COLLECTION = "crm_leads";
  * still has something to reference.
  */
 export const DELETED_LEADS_COLLECTION = "crm_leads_deleted";
-export const ACTIVITIES_COLLECTION = "employee_activities";
-export const NOTIFICATIONS_COLLECTION = "notifications";
-export const USERS_COLLECTION = "users";
-export const ROLES_COLLECTION = "roles";
-
-/**
- * Pre-fix collection that still holds enquiries captured while the public form
- * wrote to the wrong place. Read-only: kept so those records can be migrated,
- * never written to again.
- */
-export const LEGACY_CONSULTATIONS_COLLECTION = "consultations";

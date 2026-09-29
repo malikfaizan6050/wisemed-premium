@@ -51,13 +51,6 @@ export function createPageMetadata({ title,description,path,keywords=[],noIndex=
     };
 }
 
-export const specialtyServiceSeo=[
-    { slug:"cardiology-billing-services",name:"Cardiology Billing Services" },
-    { slug:"orthopedic-billing-services",name:"Orthopedic Billing Services" },
-    { slug:"behavioral-health-billing-services",name:"Behavioral Health Billing Services" },
-    { slug:"primary-care-billing-services",name:"Primary Care Billing Services" }
-] as const;
-
 export const organizationSchema={
     "@context":"https://schema.org",
     "@type":"Organization",

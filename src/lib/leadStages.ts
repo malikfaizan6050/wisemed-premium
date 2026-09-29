@@ -1,10 +1,10 @@
 // The single source of truth for the sales pipeline.
 //
-// These stages previously existed in four diverging copies (types/crm.ts,
-// types/lead.ts, LeadDrawer, PipelineOverview, DashboardFilters). The copies
-// disagreed: `contract_review` was missing from the pipeline board, so any lead
-// sitting in it was invisible on every screen, and types/lead.ts carried two
-// stages (`qualified`, `converted`) that no screen has ever rendered.
+// These stages previously existed in four diverging copies (types/crm.ts, the
+// since-deleted types/lead.ts, LeadDrawer, PipelineOverview, DashboardFilters).
+// The copies disagreed: `contract_review` was missing from the pipeline board,
+// so any lead sitting in it was invisible on every screen, and types/lead.ts
+// carried two stages (`qualified`, `converted`) no screen has ever rendered.
 //
 // Add or rename a stage here and every screen follows. Do not re-declare this
 // list anywhere else.

@@ -1,7 +1,7 @@
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 
-export interface LegalSection {
+interface LegalSection {
     title:string;
     paragraphs?:string[];
     items?:string[];

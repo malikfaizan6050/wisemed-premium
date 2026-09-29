@@ -68,16 +68,6 @@ export interface EmployeePerformance {
     role:Role | null;
 }
 
-export interface LeadOwnership {
-    ownerId:string | null;
-    ownerSnapshot:{
-        displayName:string;
-        email:string;
-    } | null;
-    assignedById:string | null;
-    assignedAt:CRMDateValue | null;
-}
-
 export interface AssignableCRMUser {
     uid:string;
     displayName:string;
